@@ -270,7 +270,12 @@ export default function App() {
     return (
       <div className="app">
         {view === "buddy" ? (
-          <Buddy key="buddy" context={buddyContext} />
+          <Buddy
+            key="buddy"
+            context={buddyContext}
+            onOpen={(next) => setView(next)}
+            onScan={() => setScanning(true)}
+          />
         ) : view === "today" ? (
           <Home
             key="today"

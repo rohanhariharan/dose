@@ -91,7 +91,19 @@ How to answer:
 - Missing a dose, how to store something, what a medicine is usually for, whether it can be taken
   with food: answer those directly.
 - If you are unsure, say so in one sentence and point them at their pharmacist or prescriber.
-- Never mention that you are a language model or which company made you."""
+- Never mention that you are a language model or which company made you.
+
+Sometimes the helpful thing is to offer an action rather than describe one. When the person asks for
+reminders, a schedule change, or anything the app itself can do, finish your reply with exactly one
+fenced block, on its own, last:
+
+```action
+{"type": "notifications", "title": "Turn on reminders?", "body": "You asked for reminders for this course.", "yes": "Turn on", "no": "Not now"}
+```
+
+Allowed types: "notifications" (turn on system reminders), "rescan" (photograph a different pack),
+"open" (open a screen: value "today" | "medicines" | "buddy"). Keep the body under 140 characters.
+Never invent a type. If no action would help, do not include a block."""
 
 
 def api_key():
@@ -210,6 +222,48 @@ def chat(messages, context=""):
         return payload["candidates"][0]["content"]["parts"][0]["text"].strip()
     except (KeyError, IndexError):
         raise RuntimeError("gemini returned no text") from None
+
+
+def chat_stream(messages, context=""):
+    """The same reply, a piece at a time, so the app can show it as it arrives."""
+    system = SYSTEM
+    if context:
+        system += "\n\nWhat they have on file right now (use it if it helps, do not recite it):\n" + context
+
+    body = {
+        "systemInstruction": {"parts": [{"text": system}]},
+        "contents": [
+            {"role": m["role"], "parts": [{"text": m["text"]}]}
+            for m in messages
+            if m.get("text")
+        ],
+        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 500},
+    }
+    req = urllib.request.Request(
+        f"{ENDPOINT}/{MODEL}:streamGenerateContent?alt=sse",
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json", "x-goog-api-key": api_key()},
+    )
+    with urllib.request.urlopen(req, timeout=90) as response:
+        for raw in response:
+            line = raw.decode("utf-8", errors="replace").strip()
+            if not line.startswith("data:"):
+                continue
+            payload = line[5:].strip()
+            if not payload or payload == "[DONE]":
+                continue
+            try:
+                chunk = json.loads(payload)
+            except json.JSONDecodeError:
+                continue
+            try:
+                parts = chunk["candidates"][0]["content"]["parts"]
+            except (KeyError, IndexError):
+                continue
+            for part in parts:
+                text = part.get("text")
+                if text:
+                    yield text
 
 
 def main():

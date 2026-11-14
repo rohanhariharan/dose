@@ -41,6 +41,13 @@ FIELDS = (
 
 
 class Handler(BaseHTTPRequestHandler):
+    # HTTP/1.1 so the browser will accept a chunked stream; everything else
+    # sets Content-Length, so keep-alive is safe.
+    protocol_version = "HTTP/1.1"
+
+    def _chunk(self, data):
+        self.wfile.write(f"{len(data):X}\r\n".encode() + data + b"\r\n")
+        self.wfile.flush()
     def _send(self, status, payload):
         body = json.dumps(payload).encode()
         self.send_response(status)
@@ -68,6 +75,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         route = self.path.split("?")[0]
+        if route == "/chat/stream":
+            self.handle_chat_stream()
+            return
         if route == "/chat":
             self.handle_chat()
             return
@@ -103,6 +113,44 @@ class Handler(BaseHTTPRequestHandler):
                 pass
 
         self._send(200, {key: result.get(key) for key in FIELDS})
+
+    def handle_chat_stream(self):
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            body = json.loads(self.rfile.read(length))
+            messages = body.get("messages") or []
+            context = (body.get("context") or "").strip()
+            if not messages:
+                raise ValueError("no messages")
+        except Exception as error:  # noqa: BLE001
+            self._send(400, {"error": f"bad request: {error}"})
+            return
+
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Transfer-Encoding", "chunked")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+
+        def event(payload):
+            return f"data: {json.dumps(payload)}\n\n".encode()
+
+        try:
+            for delta in gemini.chat_stream(messages, context):
+                self._chunk(event({"delta": delta}))
+            self._chunk(event({"done": True}))
+        except Exception as error:  # noqa: BLE001
+            try:
+                self._chunk(event({"error": str(error)}))
+            except OSError:
+                pass
+        finally:
+            try:
+                self.wfile.write(b"0\r\n\r\n")
+                self.wfile.flush()
+            except OSError:
+                pass
 
     def handle_chat(self):
         try:

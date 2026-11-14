@@ -33,7 +33,7 @@ seconds of patience.
 | Received + AM/PM | done — the day the prescription was handed over, morning or evening |
 | Times + course length | done — 1–3 doses a day at set times, 3–30 days |
 | Plan | done — a progress bar of doses behind you, then next dose, refill and the day the course ends |
-| Buddy | done — a Gemini chat grounded in the medicines on file, told in its system prompt that it is not a clinician |
+| Buddy | done — streams its replies, is grounded in the medicines on file, and can offer an action card ("turn on reminders?") instead of describing one |
 | Label → schedule | the reader is built (`lab/`), wired through a loopback bridge; the schedule is still asked for, not inferred |
 | Scheduler, notifications | not built |
 
