@@ -34,19 +34,33 @@ NOISE = re.compile(
     re.IGNORECASE,
 )
 
+# The closed set the app knows. A label that names none of these is "other".
 FORMS = [
+    ("metered dose", "inhaler"),
     ("inhalation aerosol", "inhaler"),
-    ("aerosol", "inhaler"),
     ("inhaler", "inhaler"),
+    ("aerosol", "inhaler"),
     ("actuation", "inhaler"),
     ("tablet", "tablet"),
     ("capsule", "capsule"),
-    ("syrup", "syrup"),
-    ("suspension", "suspension"),
-    ("cream", "cream"),
+    ("softgel", "capsule"),
+    ("syrup", "liquid"),
+    ("suspension", "liquid"),
+    ("elixir", "liquid"),
+    ("solution", "liquid"),
+    ("liquid", "liquid"),
     ("ointment", "ointment"),
-    ("drops", "drops"),
+    ("cream", "cream"),
     ("gel", "gel"),
+    ("eye drop", "drops"),
+    ("ear drop", "drops"),
+    ("drops", "drops"),
+    ("injection", "injection"),
+    ("injectable", "injection"),
+    ("syringe", "injection"),
+    ("vial", "injection"),
+    ("patch", "patch"),
+    ("spray", "spray"),
 ]
 
 STRENGTH = re.compile(
@@ -105,7 +119,9 @@ def runs(lines):
             step = line["y"] - prev["y"]
             same_column = abs(line["x"] - prev["x"]) < 0.09
             steady = 0 < step < 2.2 * prev["h"]
-            similar = 0.6 < line["h"] / prev["h"] < 1.7
+            # A big drop in type size ends the name: the generic line under
+            # a brand is set smaller and is not part of the name.
+            similar = 0.78 < line["h"] / prev["h"] < 1.3
             if nameish(line) and same_column and steady and similar:
                 last.append(line)
                 continue
@@ -154,6 +170,7 @@ def parse(page):
                 form = kind
                 evidence["form"] = word
                 break
+    form = form or "other"
 
     name = re.sub(r"\s+\d+\s*(mcg|mg|g|ml|%)$", "", name, flags=re.I).strip()
 

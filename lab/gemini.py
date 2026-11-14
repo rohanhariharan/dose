@@ -25,7 +25,22 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite")
 ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models"
 
-PROMPT = """You are reading a photograph of a medicine: a box, a pharmacy label or an inhaler.
+KINDS = [
+    "tablet",
+    "capsule",
+    "inhaler",
+    "injection",
+    "drops",
+    "cream",
+    "ointment",
+    "gel",
+    "liquid",
+    "patch",
+    "spray",
+    "other",
+]
+
+PROMPT = f"""You are reading a photograph of a medicine: a box, a pharmacy label or an inhaler.
 
 Transcribe only what is printed. Never infer, complete or correct a dose that is not on the
 label — a guessed dose is worse than a blank. If a field is absent from the photograph, leave
@@ -38,14 +53,18 @@ it empty and list its name in "missing".
 "duration_days" only when the label states a course length; otherwise 0.
 "as_needed" is true for "as needed", "PRN", "when required".
 "directions_text" is the directions line verbatim, or empty.
-"confidence" is your own certainty in the name and strength, 0 to 1."""
+"confidence" is your own certainty in the name and strength, 0 to 1.
+
+"form" must be exactly one of: {", ".join(KINDS)}. Judge it from the packaging: a pressurised
+canister with a mouthpiece is an inhaler, a tube is a cream or an ointment, blister foil is a
+tablet. Use "other" rather than guessing when the photograph does not show it."""
 
 SCHEMA = {
     "type": "OBJECT",
     "properties": {
         "name": {"type": "STRING"},
         "strength": {"type": "STRING"},
-        "form": {"type": "STRING"},
+        "form": {"type": "STRING", "enum": KINDS},
         "quantity_value": {"type": "INTEGER"},
         "quantity_unit": {"type": "STRING"},
         "doses_per_day": {"type": "INTEGER"},

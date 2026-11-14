@@ -1,5 +1,14 @@
 import { useEffect, useState } from "react";
-import { clockTime, dayLabel, daysLeftWords, planFor, untilWords, type Medicine } from "./engine";
+import {
+  clockTime,
+  dayLabel,
+  daysLeftWords,
+  displayName,
+  planFor,
+  untilWords,
+  type Medicine,
+} from "./engine";
+import { kindLabel } from "./kinds";
 import type { Profile } from "./Onboarding";
 
 function greeting(hour: number) {
@@ -85,10 +94,11 @@ export default function Home({
                 <article className="plan" key={m.id}>
                   <div className="plan-head">
                     <h2>
-                      {m.name} {m.strength}
+                      {displayName(m.name)} {m.strength}
                     </h2>
                     <span className="plan-sub">
-                      {m.times.join(" · ")} · {m.days} day{m.days === 1 ? "" : "s"}
+                      {kindLabel(m.form)} · {m.times.join(" · ")} · {m.days} day
+                      {m.days === 1 ? "" : "s"}
                     </span>
                   </div>
 

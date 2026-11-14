@@ -106,3 +106,14 @@ export function daysLeftWords(days: number): string {
   if (n === 1) return "tomorrow";
   return `in ${n} days`;
 }
+
+/** Labels print drug names in capitals. Read them as "Augmentin" rather than
+ *  "AUGMENTIN", but leave short tokens alone so HFA and HCL stay acronyms. */
+export function displayName(raw: string): string {
+  const name = raw.trim();
+  if (!name || name !== name.toUpperCase()) return name;
+  return name
+    .split(/\s+/)
+    .map((word) => (word.length <= 3 ? word : word[0] + word.slice(1).toLowerCase()))
+    .join(" ");
+}

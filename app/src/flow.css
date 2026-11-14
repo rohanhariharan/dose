@@ -270,7 +270,7 @@
    live view only shows through the box the bottle has to fill. */
 .scan-frame {
   position: relative;
-  width: min(252px, 58vw);
+  width: min(360px, 82vw);
   aspect-ratio: 3 / 4;
   border-radius: 22px;
   box-shadow: 0 0 0 100vmax rgba(8, 8, 10, 0.78);
@@ -651,3 +651,12 @@
 .scan-cta:hover { filter: brightness(0.96); }
 .scan-manual { color: rgba(255, 255, 255, 0.7); }
 .scan-manual:hover { color: #fff; }
+
+.read-note {
+  margin: 16px auto 0;
+  max-width: 38ch;
+  color: var(--faint);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+}

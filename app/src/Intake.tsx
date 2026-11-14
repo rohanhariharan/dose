@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { defaultTimes } from "./engine";
+import { defaultTimes, displayName } from "./engine";
+import { kindLabel } from "./kinds";
 
 /** The three pages between a photograph and a plan. One question each, the
  *  same 420px column as onboarding, and a way back at every step. */
@@ -28,6 +29,8 @@ function Sheet({
 export function FoundPage({
   name,
   strength,
+  kind,
+  source,
   manual: startManual = false,
   onYes,
   onAgain,
@@ -35,6 +38,8 @@ export function FoundPage({
 }: {
   name: string;
   strength: string;
+  kind?: string;
+  source?: string;
   manual?: boolean;
   onYes: (name: string, strength: string) => void;
   onAgain: () => void;
@@ -91,12 +96,13 @@ export function FoundPage({
         </>
       ) : (
         <>
+          {kind ? <p className="eyebrow">{kindLabel(kind)}</p> : null}
           <h1>
-            {name}
+            {displayName(name)}
             {strength ? ` ${strength}` : ""}
           </h1>
           <p className="lede">
-            This bottle scanned as {name}
+            This bottle scanned as {displayName(name)}
             {strength ? `, ${strength}` : ""}. Did we get that right?
           </p>
           <div className="form">
@@ -115,6 +121,13 @@ export function FoundPage({
               Enter manually
             </button>
           </div>
+          {source ? (
+            <p className="read-note">
+              {source.startsWith("local+cloud")
+                ? "Read here, then checked with Gemini — this photo left the machine."
+                : "Read on this machine. The photo did not leave."}
+            </p>
+          ) : null}
         </>
       )}
     </Sheet>

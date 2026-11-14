@@ -5,6 +5,7 @@ import Home from "./Home";
 import { PlusIcon } from "./icons";
 import { FoundPage, ReceivedPage, TimesPage } from "./Intake";
 import { defaultTimes, type Medicine } from "./engine";
+import { asKind } from "./kinds";
 import { readLabel } from "./reader";
 import { NamePage, RegimensPage, type Profile } from "./Onboarding";
 import Placeholder from "./Placeholder";
@@ -23,6 +24,8 @@ interface Draft {
   slot: "AM" | "PM";
   times: string[];
   days: number;
+  form?: string;
+  source?: string;
   quantity?: number;
   unit?: string;
   prn?: boolean;
@@ -102,7 +105,7 @@ export default function App() {
       id: crypto.randomUUID(),
       name: d.name,
       strength: d.strength,
-      form: "tablet",
+      form: asKind(d.form),
       receivedAt: d.receivedAt,
       slot: d.slot,
       times: [...d.times].sort(),
@@ -186,6 +189,8 @@ export default function App() {
               slot: "AM",
               times: defaultTimes("AM", read?.perDay ?? 1),
               days: read?.durationDays ?? 7,
+              form: read?.form ?? undefined,
+              source: read?.source,
               quantity: read?.quantity ?? undefined,
               unit: read?.unit ?? undefined,
               prn: read?.prn ?? false,
@@ -202,6 +207,8 @@ export default function App() {
           key={readFailed ? "manual" : "found"}
           name={draft.name}
           strength={draft.strength}
+          kind={readFailed ? undefined : draft.form}
+          source={readFailed ? undefined : draft.source}
           manual={readFailed}
           onCancel={resetFlow}
           onAgain={() => {
