@@ -27,12 +27,13 @@ seconds of patience.
 | Your name | done |
 | What you're keeping up with | done — regimen *shapes*, not diagnoses |
 | Home | done — greeting, today's doses, empty state |
-| Dock | done — Today, Medicines, History, Settings (last three are placeholders) |
+| Dock | done — Today, Medicines, History, Buddy, Settings (the middle two are still placeholders) |
 | Scan a medicine | done — live camera, a 360×480 box, and the shutter crops to exactly that box |
 | Confirm the read | done — the name, strength and kind, read for real; *"did we get that right?"* → yes / try again / enter manually |
 | Received + AM/PM | done — the day the prescription was handed over, morning or evening |
 | Times + course length | done — 1–3 doses a day at set times, 3–30 days |
 | Plan | done — a progress bar of doses behind you, then next dose, refill and the day the course ends |
+| Buddy | done — a Gemini chat grounded in the medicines on file, told in its system prompt that it is not a clinician |
 | Label → schedule | the reader is built (`lab/`), wired through a loopback bridge; the schedule is still asked for, not inferred |
 | Scheduler, notifications | not built |
 
@@ -44,6 +45,7 @@ Onboarding is three pages with Typecode's two-dot-turned-three page flow; the ch
 | ![Name](design/dose-2-name.jpg) | ![Regimens](design/dose-3-regimens.jpg) |
 | ![Today](design/dose-5-today-dock.jpg) | ![Scan](design/dose-7-scan.jpg) |
 | ![Found](design/dose-9-found.jpg) | ![Plan](design/dose-12-plan.jpg) |
+| ![Buddy](design/dose-13-buddy.jpg) | |
 
 The reader picks its answer from a closed list of twelve kinds — tablet, capsule, inhaler, injection, drops, cream, ointment, gel, liquid, patch, spray, other — so the app never has to render a class it has no rule for. `app/src/kinds.ts` is the single list; the parser and the Gemini schema both constrain to it.
 

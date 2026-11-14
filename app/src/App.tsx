@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
+import Buddy from "./Buddy";
 import Dock, { type View } from "./Dock";
 import Dots from "./Dots";
 import Home from "./Home";
 import { PlusIcon } from "./icons";
 import { FoundPage, ReceivedPage, TimesPage } from "./Intake";
-import { defaultTimes, type Medicine } from "./engine";
+import { clockTime, dayLabel, defaultTimes, planFor, type Medicine } from "./engine";
 import { asKind } from "./kinds";
 import { readLabel } from "./reader";
 import { NamePage, RegimensPage, type Profile } from "./Onboarding";
@@ -46,7 +47,7 @@ function readMeds(): Medicine[] {
   }
 }
 
-const PAGES: Record<Exclude<View, "today">, { title: string; lede: string; empty: string }> = {
+const PAGES: Record<"medicines" | "history" | "settings", { title: string; lede: string; empty: string }> = {
   medicines: {
     title: "Medicines",
     lede: "What you take, how strong, and when it's due.",
@@ -90,6 +91,24 @@ export default function App() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [readFailed, setReadFailed] = useState(false);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
+
+  // What Buddy is allowed to know: the same plan the card shows, in a line.
+  const buddyContext = medicines
+    .map((m) => {
+      const plan = planFor(m, new Date());
+      const day = Math.min(m.days, Math.floor(plan.done / m.times.length) + 1);
+      return [
+        `${m.name} ${m.strength}`,
+        m.form ?? "",
+        `${m.times.length} times a day at ${m.times.join(", ")}`,
+        `day ${day} of ${m.days}`,
+        plan.next ? `next dose ${clockTime(plan.next)}` : "course finished",
+        `ends ${dayLabel(plan.end)}`,
+      ]
+        .filter(Boolean)
+        .join(", ");
+    })
+    .join("\n");
 
   const addMedicine = () => setScanning(true);
 
@@ -151,7 +170,7 @@ export default function App() {
   };
 
   if (step === 3 && profile) {
-    const page = PAGES[view as Exclude<View, "today">];
+    const page = PAGES[view as "medicines" | "history" | "settings"];
     const empty =
       view === "medicines"
         ? medicines.length
@@ -250,7 +269,9 @@ export default function App() {
 
     return (
       <div className="app">
-        {view === "today" ? (
+        {view === "buddy" ? (
+          <Buddy key="buddy" context={buddyContext} />
+        ) : view === "today" ? (
           <Home
             key="today"
             profile={profile}

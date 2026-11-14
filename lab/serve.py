@@ -21,6 +21,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+import gemini  # noqa: E402
 import read as reader  # noqa: E402
 
 HOST, PORT = "127.0.0.1", 8791
@@ -66,7 +67,11 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, {"error": "not found"})
 
     def do_POST(self):
-        if self.path.split("?")[0] != "/read":
+        route = self.path.split("?")[0]
+        if route == "/chat":
+            self.handle_chat()
+            return
+        if route != "/read":
             self._send(404, {"error": "not found"})
             return
 
@@ -98,6 +103,26 @@ class Handler(BaseHTTPRequestHandler):
                 pass
 
         self._send(200, {key: result.get(key) for key in FIELDS})
+
+    def handle_chat(self):
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            body = json.loads(self.rfile.read(length))
+            messages = body.get("messages") or []
+            context = (body.get("context") or "").strip()
+            if not messages:
+                raise ValueError("no messages")
+        except Exception as error:  # noqa: BLE001
+            self._send(400, {"error": f"bad request: {error}"})
+            return
+
+        try:
+            reply = gemini.chat(messages, context)
+        except Exception as error:  # noqa: BLE001
+            self._send(502, {"error": str(error)})
+            return
+
+        self._send(200, {"reply": reply})
 
     def log_message(self, fmt, *args):
         sys.stderr.write("  %s\n" % (fmt % args))

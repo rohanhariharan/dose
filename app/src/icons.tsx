@@ -50,6 +50,15 @@ export function SlidersIcon() {
   );
 }
 
+export function ChatIcon() {
+  return (
+    <svg {...base}>
+      <path d="M16.4 11.2c0 2.9-2.9 5.2-6.4 5.2-.7 0-1.4-.1-2-.3L4 17.2l.9-2.7A4.9 4.9 0 0 1 3.6 11.2C3.6 8.3 6.5 6 10 6s6.4 2.3 6.4 5.2Z" />
+      <path d="M7.6 10.6h.01M10 10.6h.01M12.4 10.6h.01" />
+    </svg>
+  );
+}
+
 export function PlusIcon() {
   return (
     <svg {...base} width={20} height={20} strokeWidth={1.8}>

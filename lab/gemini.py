@@ -78,6 +78,22 @@ SCHEMA = {
 }
 
 
+SYSTEM = """You are Buddy, the assistant inside Dose, a small app where one person keeps track of
+the medicines they take.
+
+How to answer:
+- Warm, plain, short. Two or three sentences unless asked for more. No lists of caveats.
+- You are not a clinician and you never pretend to be one. You do not diagnose, you do not tell
+  anyone to stop, start or change a dose, and you do not interpret test results.
+- If the person describes something urgent — chest pain, trouble breathing, swelling of the face
+  or throat, a rash spreading fast, confusion, a fever in a small child — say plainly that this
+  needs a person now: call emergency services or their doctor, and do not bury it in advice.
+- Missing a dose, how to store something, what a medicine is usually for, whether it can be taken
+  with food: answer those directly.
+- If you are unsure, say so in one sentence and point them at their pharmacist or prescriber.
+- Never mention that you are a language model or which company made you."""
+
+
 def api_key():
     key = os.environ.get("GEMINI_API_KEY")
     if key:
@@ -161,6 +177,39 @@ def read(path, model=MODEL):
         "missing": raw.get("missing") or [],
         "source": f"gemini:{MODEL}",
     }
+
+
+def chat(messages, context=""):
+    """A reply from Buddy. `messages` is [{"role": "user"|"model", "text": ...}]."""
+    system = SYSTEM
+    if context:
+        system += "\n\nWhat they have on file right now (use it if it helps, do not recite it):\n" + context
+
+    body = {
+        "systemInstruction": {"parts": [{"text": system}]},
+        "contents": [
+            {"role": m["role"], "parts": [{"text": m["text"]}]}
+            for m in messages
+            if m.get("text")
+        ],
+        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 400},
+    }
+    req = urllib.request.Request(
+        f"{ENDPOINT}/{MODEL}:generateContent",
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json", "x-goog-api-key": api_key()},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60) as response:
+            payload = json.loads(response.read())
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode(errors="replace")[:200]
+        raise RuntimeError(f"gemini HTTP {error.code}: {detail}") from None
+
+    try:
+        return payload["candidates"][0]["content"]["parts"][0]["text"].strip()
+    except (KeyError, IndexError):
+        raise RuntimeError("gemini returned no text") from None
 
 
 def main():
