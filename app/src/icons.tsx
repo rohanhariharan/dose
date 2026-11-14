@@ -49,3 +49,11 @@ export function SlidersIcon() {
     </svg>
   );
 }
+
+export function PlusIcon() {
+  return (
+    <svg {...base} width={20} height={20} strokeWidth={1.8}>
+      <path d="M10 4.2v11.6M4.2 10h11.6" />
+    </svg>
+  );
+}

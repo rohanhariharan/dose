@@ -203,7 +203,7 @@
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 30px;
+  bottom: 100px;
   transform: translateX(-50%);
   padding: 10px 16px;
   border-radius: 12px;
@@ -219,7 +219,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .page-body, .home-col, .toast { animation: none; }
+  .page-body, .home-col, .toast, .dock, .fab { animation: none; }
   .dots i { transition: none; }
 }
 
@@ -279,6 +279,32 @@
   color: var(--ink);
 }
 .dock-item:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--hair-2);
+}
+
+/* A single action, floating clear of the nav rather than inside it. */
+.fab {
+  position: fixed;
+  right: 26px;
+  bottom: 26px;
+  z-index: 31;
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--bg);
+  cursor: pointer;
+  box-shadow: 0 16px 36px -16px rgba(38, 32, 20, 0.55);
+  transition: transform 0.12s ease, filter 0.15s ease;
+  animation: dock-in 0.45s cubic-bezier(0.32, 0.72, 0.28, 1) 0.08s both;
+}
+.fab:hover { filter: brightness(1.07); transform: translateY(-1px); }
+.fab:active { transform: translateY(0); }
+.fab:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--hair-2);
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Dock, { type View } from "./Dock";
 import Dots from "./Dots";
 import Home from "./Home";
+import { PlusIcon } from "./icons";
 import { NamePage, RegimensPage, type Profile } from "./Onboarding";
 import Placeholder from "./Placeholder";
 import Welcome from "./Welcome";
@@ -47,6 +48,15 @@ export default function App() {
   const [draftRegimens, setDraftRegimens] = useState<string[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [view, setView] = useState<View>("today");
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast(null), 2600);
+    return () => window.clearTimeout(t);
+  }, [toast]);
+
+  const addMedicine = () => setToast("Next: point your camera at the box.");
 
   useEffect(() => {
     const saved = readProfile();
@@ -80,6 +90,7 @@ export default function App() {
           <Home
             key="today"
             profile={profile}
+            onAdd={addMedicine}
             onReset={() => {
               try {
                 localStorage.removeItem(KEY);
@@ -98,6 +109,16 @@ export default function App() {
         )}
 
         <Dock view={view} onChange={setView} />
+
+        <button className="fab" type="button" aria-label="Add a medicine" onClick={addMedicine}>
+          <PlusIcon />
+        </button>
+
+        {toast ? (
+          <div className="toast" role="status">
+            {toast}
+          </div>
+        ) : null}
       </div>
     );
   }
