@@ -28,6 +28,7 @@ seconds of patience.
 | What you're keeping up with | done — regimen *shapes*, not diagnoses |
 | Home | done — greeting, today's doses, empty state |
 | Dock | done — Today, Medicines, History, Settings (last three are placeholders) |
+| Scan a medicine | done — camera, frame, capture. It does not read the label yet |
 | Label → schedule | **not built** — this is the next piece and the part the judging turns on |
 | Scheduler, notifications | not built |
 
@@ -37,7 +38,7 @@ Onboarding is three pages with Typecode's two-dot-turned-three page flow; the ch
 | | |
 |---|---|
 | ![Name](design/dose-2-name.jpg) | ![Regimens](design/dose-3-regimens.jpg) |
-| ![Today](design/dose-5-today-dock.jpg) | ![History](design/dose-6-history.jpg) |
+| ![Today](design/dose-5-today-dock.jpg) | ![Scan](design/dose-7-scan.jpg) |
 
 ## Run it
 

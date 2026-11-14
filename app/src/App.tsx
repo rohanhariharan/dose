@@ -5,6 +5,7 @@ import Home from "./Home";
 import { PlusIcon } from "./icons";
 import { NamePage, RegimensPage, type Profile } from "./Onboarding";
 import Placeholder from "./Placeholder";
+import ScanPage from "./ScanPage";
 import Welcome from "./Welcome";
 
 const KEY = "dose.profile";
@@ -48,15 +49,9 @@ export default function App() {
   const [draftRegimens, setDraftRegimens] = useState<string[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [view, setView] = useState<View>("today");
-  const [toast, setToast] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = window.setTimeout(() => setToast(null), 2600);
-    return () => window.clearTimeout(t);
-  }, [toast]);
-
-  const addMedicine = () => setToast("Next: point your camera at the box.");
+  const addMedicine = () => setScanning(true);
 
   useEffect(() => {
     const saved = readProfile();
@@ -114,11 +109,7 @@ export default function App() {
           <PlusIcon />
         </button>
 
-        {toast ? (
-          <div className="toast" role="status">
-            {toast}
-          </div>
-        ) : null}
+        {scanning ? <ScanPage onClose={() => setScanning(false)} /> : null}
       </div>
     );
   }
