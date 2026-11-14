@@ -32,7 +32,7 @@ seconds of patience.
 | Confirm the read | done — the name, strength and kind, read for real; *"did we get that right?"* → yes / try again / enter manually |
 | Received + AM/PM | done — the day the prescription was handed over, morning or evening |
 | Times + course length | done — 1–3 doses a day at set times, 3–30 days |
-| Plan | done — next dose, refill, and the day the course ends |
+| Plan | done — a progress bar of doses behind you, then next dose, refill and the day the course ends |
 | Label → schedule | the reader is built (`lab/`), wired through a loopback bridge; the schedule is still asked for, not inferred |
 | Scheduler, notifications | not built |
 

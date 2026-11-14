@@ -8,7 +8,6 @@ import {
   untilWords,
   type Medicine,
 } from "./engine";
-import { kindLabel } from "./kinds";
 import type { Profile } from "./Onboarding";
 
 function greeting(hour: number) {
@@ -90,16 +89,31 @@ export default function Home({
           <section className="plans">
             {medicines.map((m) => {
               const plan = planFor(m, now);
+              const pct = plan.total ? Math.round((plan.done / plan.total) * 100) : 0;
               return (
                 <article className="plan" key={m.id}>
                   <div className="plan-head">
                     <h2>
                       {displayName(m.name)} {m.strength}
                     </h2>
-                    <span className="plan-sub">
-                      {kindLabel(m.form)} · {m.times.join(" · ")} · {m.days} day
-                      {m.days === 1 ? "" : "s"}
-                    </span>
+                    <div className="plan-progress">
+                      <div
+                        className="bar"
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={plan.total}
+                        aria-valuenow={plan.done}
+                        aria-label={`${plan.done} of ${plan.total} doses`}
+                      >
+                        <i style={{ width: `${pct}%` }} />
+                      </div>
+                      <div className="plan-meta">
+                        <span>
+                          {plan.done} of {plan.total} doses
+                        </span>
+                        <span>{pct}%</span>
+                      </div>
+                    </div>
                   </div>
 
                   <dl className="plan-kv">
