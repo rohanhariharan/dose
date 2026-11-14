@@ -3,7 +3,18 @@ import { useEffect, useRef, useState } from "react";
 /** The capture screen. A live viewfinder, a box the size of a prescription
  *  bottle, and one shutter. Nothing here reads the label yet — the button
  *  freezes a frame so the next build has something real to work from. */
-export default function ScanPage({ onClose }: { onClose: () => void }) {
+/** Stubbed until lab/extract.py exists: whatever the camera sees is reported
+ *  as this bottle. The confirmation screen is how a wrong read gets caught, so
+ *  the flow is honest about the uncertainty even while the read is fake. */
+const DEMO_READ = { name: "Augmentin", strength: "750 mg" };
+
+export default function ScanPage({
+  onClose,
+  onFound,
+}: {
+  onClose: () => void;
+  onFound: (name: string, strength: string) => void;
+}) {
   const video = useRef<HTMLVideoElement>(null);
   const [photo, setPhoto] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -56,7 +67,10 @@ export default function ScanPage({ onClose }: { onClose: () => void }) {
     canvas.height = v.videoHeight;
     canvas.getContext("2d")?.drawImage(v, 0, 0);
     setPhoto(canvas.toDataURL("image/jpeg", 0.86));
-    setNote("Got it. Reading the label comes next.");
+    setNote("Reading the label…");
+    window.setTimeout(() => {
+      onFound(DEMO_READ.name, DEMO_READ.strength);
+    }, 700);
   };
 
   return (

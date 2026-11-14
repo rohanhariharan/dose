@@ -28,7 +28,11 @@ seconds of patience.
 | What you're keeping up with | done — regimen *shapes*, not diagnoses |
 | Home | done — greeting, today's doses, empty state |
 | Dock | done — Today, Medicines, History, Settings (last three are placeholders) |
-| Scan a medicine | done — camera, frame, capture. It does not read the label yet |
+| Scan a medicine | done — camera, frame, capture. **The read is stubbed** to "Augmentin 750 mg" until `lab/` exists |
+| Confirm the read | done — *"did we get that right?"* → yes / try again / enter manually |
+| Received + AM/PM | done — the day the prescription was handed over, morning or evening |
+| Times + course length | done — 1–3 doses a day at set times, 3–30 days |
+| Plan | done — next dose, refill, and the day the course ends |
 | Label → schedule | **not built** — this is the next piece and the part the judging turns on |
 | Scheduler, notifications | not built |
 
@@ -39,6 +43,13 @@ Onboarding is three pages with Typecode's two-dot-turned-three page flow; the ch
 |---|---|
 | ![Name](design/dose-2-name.jpg) | ![Regimens](design/dose-3-regimens.jpg) |
 | ![Today](design/dose-5-today-dock.jpg) | ![Scan](design/dose-7-scan.jpg) |
+| ![Found](design/dose-9-found.jpg) | ![Plan](design/dose-12-plan.jpg) |
+
+Adding a medicine is four steps after the shutter: the read is confirmed before anything is
+saved (yes / try again / enter manually), then when the prescription was handed over and whether
+it's a morning or evening course, then how many doses a day, at what times, for how many days. The
+plan then answers the three questions that matter — when the next dose is, when the supply runs
+out, and when the course ends.
 
 ## Run it
 
