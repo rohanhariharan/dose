@@ -75,12 +75,28 @@ not at a desk — `data-theme="night"` switches it), and **body type is 14.5px**
 
 A reminder shell is not a machine-learning project, and the brief says a normal app built with AI
 coding tools "doesn't count on its own". The judged piece is **label → schedule extraction** —
-photograph the box, get frequency, dose, duration, route and any taper, quoted against the label
-text — measured field-by-field against a regex/catalogue baseline on 40–60 real medicines from our
-own kitchens. `REVIEW.md` §6 sets out the test set, the baseline, the measure and the five failures
-we expect before running it.
+photograph the box, get what it is and how it is taken — measured field by field against a regex
+baseline on real medicines.
 
-Everything stays on the machine. No account, no analytics, no health data leaves the device.
+It runs in two lanes, and the order matters:
+
+1. **On this machine.** Apple's Vision framework, wrapped in a 90-line Swift CLI
+   (`lab/labelocr.swift`), reads a label in about 60 ms. Free, offline, no key.
+2. **Gemini, only when the local read is unsure.** If Vision returns no name, or a name it does not
+   trust, the photograph is escalated to `gemini-3.1-flash-lite`, which handles glare, angles and
+   handwriting better — and is the only part of this app that sends anything off the device.
+
+The fusion rule is in `lab/read.py`: local first, escalate below 0.7 name confidence, merge the
+fields, and tell the caller which lane it used. On our own photographs the rule earns its place — a
+sharp canister reads locally with no network at all, and a frame with a blurred second label goes
+out and comes back correct.
+
+**The photo leaves the machine on that second path**, so the welcome copy has to say so before this
+ships as a default. Right now it says "Nothing leaves this computer", which is true of the local
+lane and not of the escalated one.
+
+Everything else stays on the machine: no account, no analytics, no health data stored anywhere but
+the app's own directory.
 
 ## Also in this repo
 

@@ -4,3 +4,6 @@ dist/
 *.log
 lab/samples/
 lab/labelocr
+lab/.env
+__pycache__/
+*.pyc
