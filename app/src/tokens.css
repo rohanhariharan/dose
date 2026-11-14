@@ -125,4 +125,11 @@ button { font: inherit; color: inherit; }
 }
 .quiet:hover { color: var(--ink); }
 
-.shell { min-height: 100%; }
+/* The shell exists so a page can be vertically centred: a one-row grid with a
+   1fr track gives the child a definite height, which `min-height: 100%` on an
+   auto-height parent does not. */
+.shell {
+  display: grid;
+  grid-template-rows: 1fr;
+  min-height: 100%;
+}
