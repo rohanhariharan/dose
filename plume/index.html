@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Plume — where is the air going?</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230e1014'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%23ff5d5d'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root{
+    --bg:#08090b;
+    --glass:rgba(18,20,24,.72);
+    --glass-solid:rgba(18,20,24,.94);
+    --line:rgba(255,255,255,.09);
+    --text:#eef1f5;
+    --muted:#8b93a1;
+    --accent:#ff6b57;
+    --ok:#4ade80;
+    --warn:#fbbf24;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
+    overflow:hidden;font-size:14px;letter-spacing:.01em;
+  }
+
+  /* ---------- map ---------- */
+  #map{position:fixed;inset:0;background:#08090b;z-index:0}
+  .leaflet-container{background:#08090b;font-family:var(--sans)}
+  .leaflet-control-attribution{
+    background:rgba(8,9,11,.7)!important;color:#5a616d!important;
+    font-size:10px!important;padding:2px 8px!important;border-radius:6px;
+    margin:0 8px 8px 0!important;
+  }
+  .leaflet-control-attribution a{color:#7d8794!important}
+  .leaflet-control-zoom{display:none}
+  canvas.plume-layer{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:410}
+  #heat-layer{filter:blur(5px);transform:scale(1.02)}
+
+  /* soft top/bottom scrims so the floating UI reads over the map */
+  .scrim{position:fixed;left:0;right:0;pointer-events:none;z-index:420}
+  .scrim.top{top:0;height:190px;background:linear-gradient(to bottom,rgba(6,7,9,.86),rgba(6,7,9,.35) 55%,transparent)}
+  .scrim.bottom{bottom:0;height:200px;background:linear-gradient(to top,rgba(6,7,9,.9),rgba(6,7,9,.4) 50%,transparent)}
+
+  /* ---------- floating nav ---------- */
+  .navwrap{
+    position:fixed;top:22px;left:0;right:0;z-index:440;
+    display:flex;justify-content:center;pointer-events:none;
+  }
+  .nav{
+    pointer-events:auto;display:flex;align-items:center;gap:6px;
+    padding:7px 8px 7px 10px;border-radius:999px;
+    background:var(--glass);border:1px solid var(--line);
+    backdrop-filter:blur(22px) saturate(180%);-webkit-backdrop-filter:blur(22px) saturate(180%);
+    box-shadow:0 18px 44px -12px rgba(0,0,0,.85),0 1px 0 rgba(255,255,255,.06) inset;
+    max-width:calc(100vw - 24px);
+  }
+  .brand{display:flex;align-items:center;gap:9px;padding:0 10px 0 4px;user-select:none}
+  .mark{
+    width:24px;height:24px;border-radius:9px;flex:0 0 auto;
+    background:radial-gradient(circle at 32% 28%,#ffb4a3,#ff6b57 42%,#b8342a 100%);
+    box-shadow:0 0 0 1px rgba(255,255,255,.14) inset,0 4px 14px -4px rgba(255,107,87,.7);
+  }
+  .brand b{font-size:14px;font-weight:650;letter-spacing:-.015em}
+  .brand span{font-size:11px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+
+  .seg{display:flex;align-items:center;gap:2px;background:rgba(255,255,255,.045);padding:3px;border-radius:999px}
+  .seg button{
+    appearance:none;border:0;background:transparent;color:var(--muted);
+    font:inherit;font-size:13px;font-weight:520;padding:7px 14px;border-radius:999px;
+    cursor:pointer;transition:color .16s,background .16s;white-space:nowrap;
+    display:flex;align-items:center;gap:7px;
+  }
+  .seg button:hover{color:#dfe4ec}
+  .seg button[aria-pressed="true"]{background:rgba(255,255,255,.11);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.08) inset}
+  .seg button .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  .seg button[aria-pressed="false"] .dot{background:#4b5361;box-shadow:none}
+
+  .status{
+    display:flex;align-items:center;gap:8px;padding:0 14px 0 12px;margin-left:2px;
+    border-left:1px solid var(--line);height:30px;font-size:11.5px;color:var(--muted);
+    letter-spacing:.03em;white-space:nowrap;
+  }
+  .pulse{width:6px;height:6px;border-radius:50%;background:var(--ok);position:relative;flex:0 0 auto}
+  .pulse::after{content:"";position:absolute;inset:-4px;border-radius:50%;background:var(--ok);opacity:.35;animation:pulse 2.4s ease-out infinite}
+  @keyframes pulse{0%{transform:scale(.5);opacity:.5}70%{transform:scale(1.9);opacity:0}100%{opacity:0}}
+  .status.loading .pulse{background:var(--warn)}
+  .status.loading .pulse::after{background:var(--warn)}
+  .status.sample .pulse{background:var(--warn)}
+  .status.sample .pulse::after{background:var(--warn)}
+  .status.sample{border-left-color:rgba(251,191,36,.3)}
+  .mono{font-variant-numeric:tabular-nums;font-feature-settings:"tnum";font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace}
+
+  /* ---------- slide-down panel ---------- */
+  .panel{
+    position:fixed;top:84px;left:50%;transform:translate(-50%,-14px);z-index:435;
+    width:min(540px,calc(100vw - 28px));padding:20px 22px;border-radius:20px;
+    background:var(--glass-solid);border:1px solid var(--line);
+    backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+    box-shadow:0 26px 60px -18px rgba(0,0,0,.9);
+    opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;
+  }
+  .panel.open{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+  .panel h3{margin:0 0 10px;font-size:15px;font-weight:620;letter-spacing:-.01em}
+  .panel p{margin:0 0 10px;font-size:13px;line-height:1.6;color:#aeb6c2}
+  .panel p:last-child{margin-bottom:0}
+  .panel code,.panel .k{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#e6eaf2;background:rgba(255,255,255,.07);padding:1px 5px;border-radius:5px}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:7px 16px;font-size:12.5px;margin-top:2px}
+  .kv dt{color:var(--muted)}
+  .kv dd{margin:0;color:#dfe4ec}
+  .panel .close{position:absolute;top:14px;right:14px;width:26px;height:26px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;display:grid;place-items:center}
+  .panel .close:hover{background:rgba(255,255,255,.07);color:#fff}
+
+  /* ---------- bottom legend ---------- */
+  .legend{
+    position:fixed;bottom:26px;left:50%;transform:translateX(-50%);z-index:440;
+    display:flex;flex-direction:column;gap:9px;align-items:center;
+    padding:14px 18px 13px;border-radius:16px;
+    background:var(--glass);border:1px solid var(--line);
+    backdrop-filter:blur(20px) saturate(160%);-webkit-backdrop-filter:blur(20px) saturate(160%);
+    box-shadow:0 16px 40px -16px rgba(0,0,0,.9);
+    max-width:calc(100vw - 28px);
+  }
+  .ramp{width:min(360px,62vw);height:8px;border-radius:4px;position:relative;
+    background:linear-gradient(90deg,
+      rgba(30,140,170,.55) 0%,rgba(46,160,120,.72) 6%,rgba(120,190,90,.8) 14%,
+      rgba(226,196,64,.85) 20%,rgba(240,140,50,.9) 32%,rgba(226,80,60,.92) 48%,
+      rgba(190,40,120,.94) 72%,rgba(140,20,90,.96) 100%);
+  }
+  .ticks{position:relative;height:12px;width:min(360px,62vw);font-size:10px;color:#6d7583;letter-spacing:.04em}
+  .ticks span{position:absolute;top:0;white-space:nowrap}
+  .legend .cap{font-size:10.5px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;display:flex;gap:8px;align-items:center}
+  .legend .cap b{color:#dfe4ec;font-weight:600;letter-spacing:.04em}
+
+  /* ---------- readout ---------- */
+  .readout{
+    position:fixed;z-index:450;pointer-events:none;opacity:0;transition:opacity .12s;
+    padding:7px 11px;border-radius:9px;background:rgba(10,11,14,.92);
+    border:1px solid var(--line);font-size:12px;line-height:1.35;white-space:nowrap;
+    box-shadow:0 10px 24px -10px rgba(0,0,0,.9);transform:translate(14px,14px);
+  }
+  .readout.on{opacity:1}
+  .readout .v{font-size:15px;font-weight:640;letter-spacing:-.01em}
+  .readout .u{font-size:10px;color:var(--muted);margin-left:3px;letter-spacing:.04em}
+  .readout .loc{font-size:10px;color:#6d7583;margin-top:2px;letter-spacing:.04em}
+
+  /* ---------- corner note ---------- */
+  .note{
+    position:fixed;left:22px;bottom:22px;z-index:430;font-size:10.5px;color:#5d6470;
+    line-height:1.5;letter-spacing:.03em;max-width:220px;pointer-events:none;
+  }
+  .note b{color:#7f8794;font-weight:600}
+
+  @media (max-width:720px){
+    .brand span{display:none}
+    .seg button{padding:7px 10px;font-size:12.5px}
+    .status{padding:0 10px 0 8px;font-size:10.5px}
+    .nav{gap:2px;padding:6px 6px 6px 8px}
+    .legend{bottom:16px;padding:12px 14px}
+    .note{display:none}
+    .panel{top:78px}
+  }
+  @media (max-width:520px){
+    .status .when{display:none}
+  }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="scrim top"></div>
+<div class="scrim bottom"></div>
+
+<div class="navwrap">
+  <nav class="nav" aria-label="Primary">
+    <div class="brand">
+      <div class="mark"></div>
+      <div>
+        <b>Plume</b><br />
+        <span>air movement</span>
+      </div>
+    </div>
+
+    <div class="seg" role="group" aria-label="View">
+      <button id="btn-map" aria-pressed="true">Map</button>
+      <button id="btn-wind" aria-pressed="true"><span class="dot"></span>Wind</button>
+      <button id="btn-forecast" aria-pressed="false">Forecast</button>
+      <button id="btn-method" aria-pressed="false">Method</button>
+    </div>
+
+    <div class="status loading" id="status">
+      <span class="pulse"></span>
+      <span id="status-text">Loading field</span>
+      <span class="when mono" id="status-time"></span>
+    </div>
+  </nav>
+</div>
+
+<section class="panel" id="panel-forecast" aria-hidden="true">
+  <button class="close" data-close aria-label="Close">&times;</button>
+  <h3>Forecast — next 24 hours</h3>
+  <p>This is the map view. The forecast layer will take today's field plus the wind field and predict where tomorrow's air goes, trained on historical frames for one region.</p>
+  <dl class="kv">
+    <dt>Input</dt><dd>today's PM2.5 field · wind u/v · yesterday's field</dd>
+    <dt>Output</dt><dd>PM2.5 field +24h</dd>
+    <dt>Baselines</dt><dd>persistence · wind-shift advection</dd>
+    <dt>Measure</dt><dd>MAE on a held-out final period</dd>
+  </dl>
+</section>
+
+<section class="panel" id="panel-method" aria-hidden="true">
+  <button class="close" data-close aria-label="Close">&times;</button>
+  <h3>Method &amp; limits</h3>
+  <p>The field is sampled on a <span class="k">5° global grid</span> (2,520 points) from the Open-Meteo air quality API, which serves CAMS model output — <b>not</b> ground-station measurements. Values are hourly model estimates, so treat this as a plume-shape view, not a compliance reading.</p>
+  <p>Wind arrows show the 10 m flow direction, reversed from meteorological "from" direction. That is the mechanism the forecast model has to learn: pollution leaving one grid cell has to arrive in the next one, shifted by the wind vector.</p>
+  <p>Arrows are drawn on a 10° subsample for legibility. Hover the map for the interpolated value at any point.</p>
+</section>
+
+<div class="legend">
+  <div class="cap"><b>PM2.5</b> µg/m³ <span style="color:#4b5361">·</span> WHO guideline 5</div>
+  <div class="ramp" id="ramp"></div>
+  <div class="ticks" id="ticks"></div>
+</div>
+
+<div class="note">
+  <b>Hover</b> for a reading. Grid is a coarse global sample — city detail comes in the regional view.
+</div>
+
+<div class="readout" id="readout">
+  <div><span class="v" id="ro-val">—</span><span class="u">µg/m³</span></div>
+  <div class="loc mono" id="ro-loc">—</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(() => {
+  "use strict";
+
+  // ---------------------------------------------------------------------------
+  // Config
+  // ---------------------------------------------------------------------------
+  const SNAPSHOT_STEP = 5;     // resolution of data/field.json
+  const LIVE_STEP = 15;        // coarse grid when fetching the API directly
+  const WIND_STEP = 15;        // wind is smooth; a coarse grid is enough
+  const LAT_MIN = -85, LAT_MAX = 85;
+  const CHUNK = 600;           // max coordinate pairs per request
+  const FETCH_TIMEOUT = 15000;
+  const DOWNSCALE = 3;         // render heat at 1/3 resolution, browser smooths it
+
+  // PM2.5 colour ramp (µg/m³ -> rgba). Stops interpolated linearly.
+  const RAMP = [
+    [0,   [ 30, 140, 170,   0 ]],
+    [6,   [ 46, 160, 120,   0 ]],
+    [10,  [ 70, 175, 110, .16]],
+    [18,  [140, 195,  85, .34]],
+    [28,  [226, 196,  64, .50]],
+    [45,  [240, 140,  50, .64]],
+    [85,  [226,  80,  60, .76]],
+    [160, [190,  40, 120, .86]],
+    [300, [140,  20,  90, .93]],
+  ];
+
+  const state = {
+    grid: null,          // PM2.5 field: {nx, ny, lat0, lon0, dlat, dlon, v, lats, lons}
+    wind: null,          // wind vector grid, fetched from the weather API at a coarser step
+    live: false,
+    showWind: true,
+    hover: null,
+  };
+
+  // ---------------------------------------------------------------------------
+  // Map
+  // ---------------------------------------------------------------------------
+  const map = L.map("map", {
+    center: [18, 12],
+    zoom: 2,
+    minZoom: 1,
+    maxZoom: 7,
+    maxZoom: 6,
+    zoomControl: false,
+    attributionControl: true,
+    worldCopyJump: false,
+    preferCanvas: true,
+    zoomSnap: .25,
+    wheelPxPerZoomLevel: 120,
+    maxBounds: [[-85, -180], [85, 180]],
+    maxBoundsViscosity: 1,
+  });
+
+  L.tileLayer(
+    "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+    {
+      maxZoom: 9,
+      noWrap: true,
+      attribution:
+        'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
+    }
+  ).addTo(map);
+
+  L.tileLayer(
+    "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
+    { maxZoom: 9, opacity: 0.5, pane: "shadowPane", noWrap: true }
+  ).addTo(map);
+
+  // Fit the whole world on any window size instead of hard-coding a zoom.
+  function fitWorld() {
+    map.fitBounds([[-58, -180], [78, 180]], { animate: false, padding: [0, 0] });
+  }
+  fitWorld();
+
+  // Heat + wind canvases live above the tiles but below the UI.
+  const heatCanvas = document.createElement("canvas");
+  heatCanvas.className = "plume-layer";
+  heatCanvas.id = "heat-layer";
+  heatCanvas.style.zIndex = 405;
+  map.getContainer().appendChild(heatCanvas);
+
+  const windCanvas = document.createElement("canvas");
+  windCanvas.className = "plume-layer";
+  windCanvas.style.zIndex = 406;
+  map.getContainer().appendChild(windCanvas);
+
+  // ---------------------------------------------------------------------------
+  // Grid build
+  // ---------------------------------------------------------------------------
+  // Build a lat/lon grid definition for a given angular step.
+  function makeGrid(step) {
+    const lats = [], lons = [];
+    for (let la = LAT_MIN; la <= LAT_MAX; la += step) lats.push(la);
+    for (let lo = -180; lo < 180; lo += step) lons.push(lo);
+    const nx = lons.length, ny = lats.length, n = nx * ny;
+    return {
+      step, lats, lons, nx, ny,
+      lat0: LAT_MIN, lon0: -180, dlat: step, dlon: step,
+      v: new Float32Array(n).fill(NaN),
+      u: new Float32Array(n).fill(NaN),
+      w: new Float32Array(n).fill(NaN),
+    };
+  }
+
+  function cellIndex(grid, lat, lon) {
+    const x = Math.round((lon - grid.lon0) / grid.dlon);
+    const y = Math.round((lat - grid.lat0) / grid.dlat);
+    if (x < 0 || y < 0 || x >= grid.nx || y >= grid.ny) return -1;
+    return y * grid.nx + x;
+  }
+
+  async function fetchChunk(points) {
+    // Commas stay literal — percent-encoding them blows past the URL length limit.
+    const la = points.map(p => p.lat.toFixed(2)).join(",");
+    const lo = points.map(p => p.lon.toFixed(2)).join(",");
+    const url = "https://air-quality-api.open-meteo.com/v1/air-quality"
+      + `?latitude=${la}&longitude=${lo}`
+      + "&current=pm2_5&timezone=UTC";
+
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT);
+    try {
+      const res = await fetch(url, { signal: ctrl.signal });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return await res.json();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Pull a grid straight from the API. Open-Meteo bills per *location*, not per
+  // request, so keep `step` coarse and `gap` large enough to respect 600/min.
+  async function fetchGrid(step, { chunk = CHUNK, gap = 0 } = {}) {
+    const grid = makeGrid(step);
+    const points = [];
+    for (let y = 0; y < grid.ny; y++)
+      for (let x = 0; x < grid.nx; x++) points.push({ lat: grid.lats[y], lon: grid.lons[x] });
+
+    const chunks = [];
+    for (let i = 0; i < points.length; i += chunk) chunks.push(points.slice(i, i + chunk));
+
+    let stamp = null;
+    for (let n = 0; n < chunks.length; n++) {
+      const rows = await fetchChunk(chunks[n]);
+      (Array.isArray(rows) ? rows : [rows]).forEach(r => {
+        if (!r || !r.current) return;
+        const i = cellIndex(grid, r.latitude, r.longitude);
+        if (i < 0) return;
+        const c = r.current;
+        grid.v[i] = Number.isFinite(c.pm2_5) ? c.pm2_5 : NaN;
+        if (!stamp && c.time) stamp = c.time;
+      });
+      if (gap && n < chunks.length - 1) await new Promise(r => setTimeout(r, gap));
+    }
+
+    const filled = countValid(grid.v);
+    if (filled < grid.v.length * 0.25) throw new Error(`too few valid cells (${filled})`);
+    return { grid, stamp };
+  }
+
+  function countValid(arr) {
+    let n = 0;
+    for (let i = 0; i < arr.length; i++) if (Number.isFinite(arr[i])) n++;
+    return n;
+  }
+
+  // Load a prebuilt snapshot written by tools/fetch_field.py.
+  function hydrate(json) {
+    const grid = makeGrid(json.step || SNAPSHOT_STEP);
+    const values = json.values || [];
+    for (let i = 0; i < Math.min(values.length, grid.v.length); i++) {
+      const cell = values[i];
+      if (!cell) continue;
+      if (Number.isFinite(cell[0])) grid.v[i] = cell[0];
+      if (Number.isFinite(cell[1])) grid.u[i] = cell[1];
+      if (Number.isFinite(cell[2])) grid.w[i] = cell[2];
+    }
+    return grid;
+  }
+
+  function hydrateWind(json) {
+    if (!json || !json.wind || !json.wind.values) return null;
+    const grid = makeGrid(json.wind.step || WIND_STEP);
+    const values = json.wind.values;
+    for (let i = 0; i < Math.min(values.length, grid.u.length); i++) {
+      const cell = values[i];
+      if (!cell) continue;
+      if (Number.isFinite(cell[0])) grid.u[i] = cell[0];
+      if (Number.isFinite(cell[1])) grid.w[i] = cell[1];
+    }
+    return grid;
+  }
+
+  // Wind comes from the forecast API, not the air-quality one: the latter
+  // accepts wind_speed_10m but always answers null (units "undefined").
+  async function fetchWind(step) {
+    const grid = makeGrid(step);
+    const points = [];
+    for (let y = 0; y < grid.ny; y++)
+      for (let x = 0; x < grid.nx; x++) points.push({ lat: grid.lats[y], lon: grid.lons[x] });
+
+    const chunks = [];
+    for (let i = 0; i < points.length; i += CHUNK) chunks.push(points.slice(i, i + CHUNK));
+
+    for (const chunk of chunks) {
+      const la = chunk.map(p => p.lat.toFixed(2)).join(",");
+      const lo = chunk.map(p => p.lon.toFixed(2)).join(",");
+      const url = "https://api.open-meteo.com/v1/forecast"
+        + `?latitude=${la}&longitude=${lo}`
+        + "&current=wind_speed_10m,wind_direction_10m&timezone=UTC";
+
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT);
+      let rows;
+      try {
+        const res = await fetch(url, { signal: ctrl.signal });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        rows = await res.json();
+      } finally {
+        clearTimeout(timer);
+      }
+
+      (Array.isArray(rows) ? rows : [rows]).forEach(r => {
+        if (!r || !r.current) return;
+        const i = cellIndex(grid, r.latitude, r.longitude);
+        if (i < 0) return;
+        const spd = r.current.wind_speed_10m, dir = r.current.wind_direction_10m;
+        if (!(Number.isFinite(spd) && Number.isFinite(dir))) return;
+        const ms = spd / 3.6;               // the weather API answers in km/h
+        const rad = dir * Math.PI / 180;
+        grid.u[i] = -ms * Math.sin(rad);    // eastward component
+        grid.w[i] = -ms * Math.cos(rad);    // northward component
+      });
+    }
+    if (countValid(grid.u) < grid.u.length * 0.25) throw new Error("wind too sparse");
+    return grid;
+  }
+
+  async function loadWind() {
+    try {
+      state.wind = await fetchWind(WIND_STEP);
+      drawWind();
+    } catch (err) {
+      console.warn("[plume] wind unavailable:", err.message);
+      state.wind = null;
+      drawWind();
+    }
+  }
+
+  function fmtStamp(iso) {
+    if (!iso) return "";
+    // "2026-11-14T21:00" -> "21:00 UTC"
+    const m = /T(\d{2}:\d{2})/.exec(iso);
+    return m ? m[1] + " UTC" : "";
+  }
+
+  async function loadField() {
+    // 1. Static snapshot: fast, offline-safe, and it is the file the forecast
+    //    model will overwrite once it exists.
+    try {
+      const res = await fetch("data/field.json", { cache: "no-store" });
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.values && json.values.length) {
+          state.grid = hydrate(json);
+          state.wind = hydrateWind(json);
+          state.live = false;
+          setStatus("snapshot", fmtStamp(json.generated_at));
+          drawAll();
+          if (!state.wind) loadWind();
+          return;
+        }
+      }
+    } catch (_) { /* no snapshot yet */ }
+
+    // 2. Coarse live grid (one request, well under the per-minute cap).
+    try {
+      const { grid, stamp } = await fetchGrid(LIVE_STEP, { chunk: 300 });
+      state.grid = grid;
+      state.live = true;
+      setStatus("live", fmtStamp(stamp));
+      drawAll(true);
+      loadWind();
+      return;
+    } catch (err) {
+      console.warn("[plume] live field unavailable:", err.message);
+    }
+
+    // 3. Deterministic placeholder so the map is never empty.
+    state.grid = sampleField();
+    state.wind = sampleWind();
+    state.live = false;
+    setStatus("sample", null);
+    drawAll();
+  }
+
+  // Deterministic fallback so the UI always renders (clearly labelled SAMPLE).
+  function sampleField() {
+    const g = makeGrid(SNAPSHOT_STEP);
+    for (let y = 0; y < g.ny; y++) {
+      for (let x = 0; x < g.nx; x++) {
+        const lon = g.lons[x], lat = g.lats[y];
+        const a = Math.sin((lon + 40) / 26) * Math.cos((lat - 12) / 19);
+        const b = Math.sin((lon - 100) / 41) * Math.cos((lat + 30) / 27);
+        const c = Math.sin((lon * lat) / 900);
+        const band = Math.max(0, Math.sin((lat + 10) / 22));      // northern belt
+        const v = 8 + 62 * Math.pow(Math.max(0, (a * .55 + b * .3 + c * .15 + 1) / 2), 1.7) * (.35 + band);
+        const i = y * g.nx + x;
+        g.v[i] = v;
+        const spd = 4 + 9 * Math.abs(Math.sin((lon + lat) / 33));
+        const ang = (lon * 0.9 + lat * 1.7) * Math.PI / 180;
+        g.u[i] = -spd * Math.sin(ang);
+        g.w[i] = -spd * Math.cos(ang);
+      }
+    }
+    return g;
+  }
+
+  function sampleWind() {
+    const g = makeGrid(WIND_STEP);
+    for (let y = 0; y < g.ny; y++) {
+      for (let x = 0; x < g.nx; x++) {
+        const lon = g.lons[x], lat = g.lats[y], i = y * g.nx + x;
+        const spd = 4 + 9 * Math.abs(Math.sin((lon + lat) / 33));
+        const ang = (lon * 0.9 + lat * 1.7) * Math.PI / 180;
+        g.u[i] = -spd * Math.sin(ang);
+        g.w[i] = -spd * Math.cos(ang);
+      }
+    }
+    return g;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sampling
+  // ---------------------------------------------------------------------------
+  function sampleAt(field, lat, lon) {
+    const g = state.grid;
+    if (!g || !field) return NaN;
+    const fx = (lon - g.lon0) / g.dlon;
+    const fy = (lat - g.lat0) / g.dlat;
+    const x0 = Math.floor(fx), y0 = Math.floor(fy);
+    if (x0 < 0 || y0 < 0 || x0 + 1 >= g.nx || y0 + 1 >= g.ny) return NaN;
+    const tx = fx - x0, ty = fy - y0;
+    const i00 = y0 * g.nx + x0, i10 = i00 + 1, i01 = i00 + g.nx, i11 = i01 + 1;
+    const a = field[i00], b = field[i10], c = field[i01], d = field[i11];
+    if (!(Number.isFinite(a) && Number.isFinite(b) && Number.isFinite(c) && Number.isFinite(d))) return NaN;
+    return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
+  }
+
+  function rampColor(v) {
+    if (!Number.isFinite(v)) return null;
+    if (v <= RAMP[0][0]) { const s = RAMP[0][1]; return [s[0], s[1], s[2], s[3]]; }
+    for (let i = 1; i < RAMP.length; i++) {
+      if (v <= RAMP[i][0]) {
+        const [v0, c0] = RAMP[i - 1], [v1, c1] = RAMP[i];
+        const t = (v - v0) / (v1 - v0);
+        return [c0[0] + (c1[0] - c0[0]) * t, c0[1] + (c1[1] - c0[1]) * t,
+                c0[2] + (c1[2] - c0[2]) * t, c0[3] + (c1[3] - c0[3]) * t];
+      }
+    }
+    const s = RAMP[RAMP.length - 1][1];
+    return [s[0], s[1], s[2], s[3]];
+  }
+
+  // ---------------------------------------------------------------------------
+  // Rendering
+  // ---------------------------------------------------------------------------
+  // Draw on a short throttle rather than requestAnimationFrame: frames stop
+  // firing for occluded windows, which would leave the map blank.
+  let lastDraw = 0, trailing = null;
+  function drawAll(force) {
+    const now = performance.now();
+    const wait = 40 - (now - lastDraw);
+    if (!force && wait > 0) {
+      if (!trailing) {
+        trailing = setTimeout(() => { trailing = null; drawAll(true); }, wait);
+      }
+      return;
+    }
+    lastDraw = now;
+    drawHeat();
+    drawWind();
+  }
+
+  function drawHeat() {
+    const size = map.getSize();
+    const w = Math.max(2, Math.ceil(size.x / DOWNSCALE));
+    const h = Math.max(2, Math.ceil(size.y / DOWNSCALE));
+
+    heatCanvas.width = w;
+    heatCanvas.height = h;
+
+    const ctx = heatCanvas.getContext("2d");
+    ctx.clearRect(0, 0, w, h);
+    if (!state.grid) return;
+
+    const img = ctx.createImageData(w, h);
+    const px = img.data;
+
+    // Longitude is linear across x in Web Mercator; latitude is not, so resolve rows.
+    const p0 = map.containerPointToLatLng([0, 0]);
+    const p1 = map.containerPointToLatLng([size.x, 0]);
+    const lonAt = xf => p0.lng + (p1.lng - p0.lng) * xf;
+
+    const latAt = new Float64Array(h);
+    for (let j = 0; j < h; j++) {
+      const yPx = j * DOWNSCALE;
+      latAt[j] = map.containerPointToLatLng([0, yPx]).lat;
+    }
+
+    for (let j = 0; j < h; j++) {
+      const lat = latAt[j];
+      if (lat > LAT_MAX || lat < LAT_MIN) continue;
+      for (let i = 0; i < w; i++) {
+        const lon = lonAt(i / w);
+        if (lon < -180 || lon > 180) continue;
+        const v = sampleAt(state.grid.v, lat, lon);
+        if (!Number.isFinite(v)) continue;
+        const c = rampColor(v);
+        if (!c) continue;
+        const o = (j * w + i) * 4;
+        px[o] = c[0]; px[o + 1] = c[1]; px[o + 2] = c[2];
+        px[o + 3] = Math.round(c[3] * 255);
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  function drawWind() {
+    const size = map.getSize();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    windCanvas.width = size.x * dpr;
+    windCanvas.height = size.y * dpr;
+    const ctx = windCanvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, size.x, size.y);
+    if (!state.showWind || !state.wind) return;
+
+    const g = state.wind;
+    // Keep arrow spacing roughly constant on screen whatever the zoom.
+    const cellPx = (256 * Math.pow(2, map.getZoom()) / 360) * g.dlat;
+    const stride = Math.max(1, Math.round(56 / cellPx));
+    ctx.lineWidth = 1.15;
+    ctx.lineCap = "round";
+
+    for (let y = 0; y < g.ny; y += stride) {
+      for (let x = 0; x < g.nx; x += stride) {
+        const i = y * g.nx + x;
+        const u = g.u[i], w = g.w[i];
+        if (!Number.isFinite(u) || !Number.isFinite(w)) continue;
+        const spd = Math.hypot(u, w);
+        if (spd < 0.6) continue;
+        if (Math.abs(g.lat0 + y * g.dlat) > 78) continue;   // skip polar clutter
+
+        const lat = g.lat0 + y * g.dlat;
+        const lon = g.lon0 + x * g.dlon;
+        const pt = map.latLngToContainerPoint([lat, lon]);
+        if (pt.x < -40 || pt.y < -40 || pt.x > size.x + 40 || pt.y > size.y + 40) continue;
+
+        const len = Math.min(20, 6 + spd * 1.25);
+        const dx = (u / spd) * len, dy = -(w / spd) * len;   // screen y is inverted
+        const x0 = pt.x - dx * .5, y0 = pt.y - dy * .5;
+        const x1 = pt.x + dx * .5, y1 = pt.y + dy * .5;
+
+        ctx.strokeStyle = "rgba(226,232,240,.40)";
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+
+        // arrow head
+        const ang = Math.atan2(dy, dx);
+        const hd = 3.4;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x1 - hd * Math.cos(ang - .45), y1 - hd * Math.sin(ang - .45));
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x1 - hd * Math.cos(ang + .45), y1 - hd * Math.sin(ang + .45));
+        ctx.stroke();
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Hover readout
+  // ---------------------------------------------------------------------------
+  const readout = document.getElementById("readout");
+  const roVal = document.getElementById("ro-val");
+  const roLoc = document.getElementById("ro-loc");
+  const NAMES = null; // reverse geocoding intentionally omitted (no key / no latency)
+
+  map.on("mousemove", e => {
+    if (!state.grid) return;
+    const v = sampleAt(state.grid.v, e.latlng.lat, e.latlng.lng);
+    if (!Number.isFinite(v)) { readout.classList.remove("on"); return; }
+    roVal.textContent = v < 10 ? v.toFixed(1) : Math.round(v);
+    roLoc.textContent = `${e.latlng.lat.toFixed(1)}°, ${e.latlng.lng.toFixed(1)}°`;
+    const ce = map.mouseEventToContainerPoint(e.originalEvent);
+    const box = map.getContainer().getBoundingClientRect();
+    readout.style.left = (box.left + ce.x) + "px";
+    readout.style.top = (box.top + ce.y) + "px";
+    readout.classList.add("on");
+  });
+  map.on("mouseout", () => readout.classList.remove("on"));
+
+  // ---------------------------------------------------------------------------
+  // Nav wiring
+  // ---------------------------------------------------------------------------
+  const btnWind = document.getElementById("btn-wind");
+  const btnForecast = document.getElementById("btn-forecast");
+  const btnMethod = document.getElementById("btn-method");
+  const panels = { forecast: document.getElementById("panel-forecast"), method: document.getElementById("panel-method") };
+
+  function closePanels() {
+    Object.entries(panels).forEach(([k, el]) => {
+      el.classList.remove("open");
+      el.setAttribute("aria-hidden", "true");
+      (k === "forecast" ? btnForecast : btnMethod).setAttribute("aria-pressed", "false");
+    });
+  }
+
+  function togglePanel(key, btn) {
+    const el = panels[key];
+    const isOpen = el.classList.contains("open");
+    closePanels();
+    if (!isOpen) {
+      el.classList.add("open");
+      el.setAttribute("aria-hidden", "false");
+      btn.setAttribute("aria-pressed", "true");
+    }
+  }
+
+  btnWind.addEventListener("click", () => {
+    state.showWind = !state.showWind;
+    btnWind.setAttribute("aria-pressed", String(state.showWind));
+    drawWind();
+  });
+
+  btnForecast.addEventListener("click", () => togglePanel("forecast", btnForecast));
+  btnMethod.addEventListener("click", () => togglePanel("method", btnMethod));
+  document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", closePanels));
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closePanels(); });
+
+  const statusEl = document.getElementById("status");
+  const statusText = document.getElementById("status-text");
+  const statusTime = document.getElementById("status-time");
+
+  function setStatus(kind, when) {
+    statusEl.classList.remove("loading", "live", "snapshot", "sample");
+    if (kind === "live" || kind === "snapshot") {
+      statusEl.classList.add(kind);
+      statusText.textContent = kind === "live" ? "Live field" : "Field snapshot";
+      statusTime.textContent = when || "";
+    } else if (kind === "sample") {
+      statusEl.classList.add("sample");
+      statusText.textContent = "Sample field";
+      statusTime.textContent = "offline";
+    } else {
+      statusEl.classList.add("loading");
+      statusText.textContent = "Loading field";
+      statusTime.textContent = "";
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Legend: same ramp as the canvas, laid out on a square-root scale so the
+  // tick numbers line up with the colour they actually correspond to.
+  // ---------------------------------------------------------------------------
+  const LEGEND_MAX = 300;
+  const legendPos = v => Math.sqrt(Math.min(v, LEGEND_MAX) / LEGEND_MAX);
+
+  function buildLegend() {
+    const stops = RAMP.map(([v, c]) =>
+      `rgba(${c[0]},${c[1]},${c[2]},${Math.max(c[3], .92)}) ${(legendPos(v) * 100).toFixed(2)}%`
+    ).join(",");
+    document.getElementById("ramp").style.background = `linear-gradient(90deg,${stops})`;
+
+    const ticks = document.getElementById("ticks");
+    [0, 12, 35, 55, 150, 300].forEach((v, i, arr) => {
+      const el = document.createElement("span");
+      el.textContent = v === LEGEND_MAX ? "300+" : String(v);
+      const pct = legendPos(v) * 100;
+      el.style.left = pct + "%";
+      el.style.transform = i === 0 ? "none" : (i === arr.length - 1 ? "translateX(-100%)" : "translateX(-50%)");
+      ticks.appendChild(el);
+    });
+  }
+  buildLegend();
+
+  // ---------------------------------------------------------------------------
+  // Boot
+  // ---------------------------------------------------------------------------
+  map.on("move zoom resize", drawAll);
+  window.addEventListener("resize", fitWorld);
+  map.on("moveend zoomend", drawWind);
+
+  // Paint a soft placeholder immediately so the first frame isn't empty,
+  // then swap in real data when the network resolves.
+  state.grid = sampleField();
+  state.wind = sampleWind();
+  drawAll(true);
+  setStatus("loading", null);
+  loadField();
+
+  window.plume = { state, map, drawAll };
+})();
+</script>
+</body>
+</html>

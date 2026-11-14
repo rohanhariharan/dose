@@ -1,0 +1,128 @@
+/* Dose — design tokens lifted from Typecode (see REVIEW.md §3).
+   Paper is the default: this app is used at 7am, not at a desk. */
+
+@font-face {
+  font-family: "Libre Baskerville";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/libre-baskerville-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Libre Baskerville";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/libre-baskerville-400-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/inter-variable.woff2") format("woff2");
+}
+
+:root {
+  --radius: 20px;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-accent: "Libre Baskerville", Georgia, serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+:root[data-theme="paper"] {
+  --bg: #f5f4ef;
+  --bg-2: #ebe7de;
+  --ink: #161513;
+  --muted: #6b6a63;
+  --faint: #9d9a90;
+  --hair: rgba(0, 0, 0, 0.08);
+  --hair-2: rgba(0, 0, 0, 0.16);
+  --ember: #4a6fae;
+  --primary-bg: #161513;
+  --primary-ink: #f5f4ef;
+  --shadow: 0 26px 60px -28px rgba(40, 34, 22, 0.45), 0 2px 6px rgba(40, 34, 22, 0.05);
+}
+
+:root[data-theme="night"] {
+  --bg: #1b1c1f;
+  --bg-2: #222429;
+  --ink: #eef1f6;
+  --muted: #9aa4b4;
+  --faint: #616b7c;
+  --hair: rgba(255, 255, 255, 0.08);
+  --hair-2: rgba(255, 255, 255, 0.14);
+  --ember: #5f88c6;
+  --primary-bg: linear-gradient(180deg, #f4f7fc, #cfd6e2);
+  --primary-ink: #0a0b0e;
+  --shadow: 0 26px 60px -24px rgba(0, 0, 0, 0.7);
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button { font: inherit; color: inherit; }
+
+/* ---------------------------------------------------------------- shared --- */
+
+.dots { display: flex; gap: 7px; }
+.dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--ink);
+  opacity: 0.18;
+  transition: opacity 0.45s ease, transform 0.45s ease;
+}
+.dots i.on { opacity: 1; transform: scale(1.15); }
+
+.primary {
+  width: 100%;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 12px;
+  background: var(--primary-bg);
+  color: var(--primary-ink);
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.06s ease, opacity 0.15s ease;
+}
+.primary:hover:not(:disabled) { filter: brightness(1.06); }
+.primary:active:not(:disabled) { transform: translateY(1px); }
+.primary:disabled { opacity: 0.55; cursor: default; }
+.primary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--hair-2);
+}
+
+.quiet {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 12.5px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--hair-2);
+  text-underline-offset: 3px;
+}
+.quiet:hover { color: var(--ink); }
+
+.shell { min-height: 100%; }
