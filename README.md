@@ -93,9 +93,9 @@ fields, and tell the caller which lane it used. On our own photographs the rule 
 sharp canister reads locally with no network at all, and a frame with a blurred second label goes
 out and comes back correct.
 
-**The photo leaves the machine on that second path**, so the welcome copy has to say so before this
-ships as a default. Right now it says "Nothing leaves this computer", which is true of the local
-lane and not of the escalated one.
+**The photo leaves the machine on that second path.** The app makes no claim about staying local:
+the welcome screen says what the product is for, and the disclosure lives here rather than in a
+promise the code cannot keep.
 
 Everything else stays on the machine: no account, no analytics, no health data stored anywhere but
 the app's own directory.

@@ -25,7 +25,6 @@ interface Draft {
   times: string[];
   days: number;
   form?: string;
-  source?: string;
   quantity?: number;
   unit?: string;
   prn?: boolean;
@@ -60,7 +59,7 @@ const PAGES: Record<Exclude<View, "today">, { title: string; lede: string; empty
   },
   settings: {
     title: "Settings",
-    lede: "Your name, reminder times, and exactly what leaves this machine.",
+    lede: "Your name, reminder times, and what the scanner does with your photos.",
     empty: "Settings land here.",
   },
 };
@@ -190,7 +189,6 @@ export default function App() {
               times: defaultTimes("AM", read?.perDay ?? 1),
               days: read?.durationDays ?? 7,
               form: read?.form ?? undefined,
-              source: read?.source,
               quantity: read?.quantity ?? undefined,
               unit: read?.unit ?? undefined,
               prn: read?.prn ?? false,
@@ -208,7 +206,6 @@ export default function App() {
           name={draft.name}
           strength={draft.strength}
           kind={readFailed ? undefined : draft.form}
-          source={readFailed ? undefined : draft.source}
           manual={readFailed}
           onCancel={resetFlow}
           onAgain={() => {

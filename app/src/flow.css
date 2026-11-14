@@ -652,11 +652,4 @@
 .scan-manual { color: rgba(255, 255, 255, 0.7); }
 .scan-manual:hover { color: #fff; }
 
-.read-note {
-  margin: 16px auto 0;
-  max-width: 38ch;
-  color: var(--faint);
-  font-size: 11px;
-  line-height: 1.5;
-  text-align: center;
-}
+

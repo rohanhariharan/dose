@@ -18,7 +18,7 @@ export default function Welcome({ onStart }: { onStart: () => void }) {
 
           <div className="card-copy">
             <h1 id="welcome-title">Welcome to Dose</h1>
-            <p>Everything you take, in one quiet place. Labels are read here first — only a photo we cannot read ever leaves this machine.</p>
+            <p>Everything you take, in one quiet place. No account, no sign-in.</p>
             <button className="primary" type="button" onClick={onStart}>
               Get started
             </button>

@@ -30,7 +30,6 @@ export function FoundPage({
   name,
   strength,
   kind,
-  source,
   manual: startManual = false,
   onYes,
   onAgain,
@@ -39,7 +38,6 @@ export function FoundPage({
   name: string;
   strength: string;
   kind?: string;
-  source?: string;
   manual?: boolean;
   onYes: (name: string, strength: string) => void;
   onAgain: () => void;
@@ -121,13 +119,7 @@ export function FoundPage({
               Enter manually
             </button>
           </div>
-          {source ? (
-            <p className="read-note">
-              {source.startsWith("local+cloud")
-                ? "Read here, then checked with Gemini — this photo left the machine."
-                : "Read on this machine. The photo did not leave."}
-            </p>
-          ) : null}
+
         </>
       )}
     </Sheet>
