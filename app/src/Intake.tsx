@@ -28,17 +28,19 @@ function Sheet({
 export function FoundPage({
   name,
   strength,
+  manual: startManual = false,
   onYes,
   onAgain,
   onCancel,
 }: {
   name: string;
   strength: string;
+  manual?: boolean;
   onYes: (name: string, strength: string) => void;
   onAgain: () => void;
   onCancel: () => void;
 }) {
-  const [manual, setManual] = useState(false);
+  const [manual, setManual] = useState(startManual);
   const [typedName, setTypedName] = useState(name);
   const [typedStrength, setTypedStrength] = useState(strength);
   const field = useRef<HTMLInputElement>(null);
@@ -90,10 +92,12 @@ export function FoundPage({
       ) : (
         <>
           <h1>
-            {name} {strength}
+            {name}
+            {strength ? ` ${strength}` : ""}
           </h1>
           <p className="lede">
-            This bottle scanned as {name}, {strength}. Did we get that right?
+            This bottle scanned as {name}
+            {strength ? `, ${strength}` : ""}. Did we get that right?
           </p>
           <div className="form">
             <button className="primary" type="button" onClick={() => onYes(name, strength)}>

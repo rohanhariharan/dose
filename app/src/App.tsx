@@ -5,6 +5,7 @@ import Home from "./Home";
 import { PlusIcon } from "./icons";
 import { FoundPage, ReceivedPage, TimesPage } from "./Intake";
 import { defaultTimes, type Medicine } from "./engine";
+import { readLabel } from "./reader";
 import { NamePage, RegimensPage, type Profile } from "./Onboarding";
 import Placeholder from "./Placeholder";
 import ScanPage from "./ScanPage";
@@ -22,6 +23,9 @@ interface Draft {
   slot: "AM" | "PM";
   times: string[];
   days: number;
+  quantity?: number;
+  unit?: string;
+  prn?: boolean;
 }
 
 function today(): string {
@@ -53,7 +57,7 @@ const PAGES: Record<Exclude<View, "today">, { title: string; lede: string; empty
   },
   settings: {
     title: "Settings",
-    lede: "Your name, reminder times, and what leaves this machine — nothing does.",
+    lede: "Your name, reminder times, and exactly what leaves this machine.",
     empty: "Settings land here.",
   },
 };
@@ -82,6 +86,7 @@ export default function App() {
   const [scanning, setScanning] = useState(false);
   const [stage, setStage] = useState<Stage>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [readFailed, setReadFailed] = useState(false);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
 
   const addMedicine = () => setScanning(true);
@@ -102,6 +107,9 @@ export default function App() {
       slot: d.slot,
       times: [...d.times].sort(),
       days: d.days,
+      quantity: d.quantity,
+      unit: d.unit,
+      prn: d.prn,
       createdAt: new Date().toISOString(),
     };
     const next = [...medicines, medicine];
@@ -154,15 +162,33 @@ export default function App() {
       return (
         <ScanPage
           onClose={() => setScanning(false)}
-          onFound={(name, strength) => {
+          onManual={() => {
             setScanning(false);
+            setReadFailed(true);
             setDraft({
-              name,
-              strength,
+              name: "",
+              strength: "",
               receivedAt: today(),
               slot: "AM",
               times: defaultTimes("AM", 1),
               days: 7,
+            });
+            setStage("found");
+          }}
+          onCapture={async (dataUrl) => {
+            const read = await readLabel(dataUrl);
+            setScanning(false);
+            setReadFailed(!read);
+            setDraft({
+              name: read?.name ?? "",
+              strength: read?.strength ?? "",
+              receivedAt: today(),
+              slot: "AM",
+              times: defaultTimes("AM", read?.perDay ?? 1),
+              days: read?.durationDays ?? 7,
+              quantity: read?.quantity ?? undefined,
+              unit: read?.unit ?? undefined,
+              prn: read?.prn ?? false,
             });
             setStage("found");
           }}
@@ -173,8 +199,10 @@ export default function App() {
     if (stage === "found" && draft) {
       return (
         <FoundPage
+          key={readFailed ? "manual" : "found"}
           name={draft.name}
           strength={draft.strength}
+          manual={readFailed}
           onCancel={resetFlow}
           onAgain={() => {
             setStage(null);

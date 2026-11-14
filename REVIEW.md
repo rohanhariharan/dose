@@ -43,7 +43,8 @@ Four screens, three of them onboarding. Each one has to earn its place or it get
 Pixel scene on top at 2:1, then: serif title, one line, one full-width primary.
 
 > **Welcome to Dose**
-> Everything you take, in one quiet place. Nothing leaves this computer.
+> Everything you take, in one quiet place. Labels are read here first — only a photo we
+> cannot read ever leaves this machine.
 > `[ Get started ]`
 
 **Screen 2 — Your name.** The two-dot page flow from Typecode's sign-in.

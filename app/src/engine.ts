@@ -14,6 +14,11 @@ export interface Medicine {
   times: string[];
   /** Course length in days. */
   days: number;
+  /** How much is in the pack, when the label says. */
+  quantity?: number;
+  unit?: string;
+  /** "as needed" has no course end; the countdown comes from the pack size. */
+  prn?: boolean;
   createdAt: string;
 }
 
