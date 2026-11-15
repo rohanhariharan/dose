@@ -6,7 +6,7 @@ Built for the **AI + Health** track of the Veritas AI International High School 
 
 > This project is a prototype and is not medical advice.
 
-[Hackathon write-up and evaluation](REPORT.md)
+[Hackathon write-up and evaluation](REPORT.md) · [Demo video](design/dose-demo.mp4)
 
 ![Welcome](design/dose-1-welcome.jpg)
 
