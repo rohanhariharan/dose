@@ -1,23 +1,27 @@
 /** The engine. Pure functions over a medicine: no React, no storage, no clock
  *  of its own — `now` is always passed in, so the demo and the tests agree. */
 
-export interface Medicine {
+export interface SchedulePhase {
+  times: string[];
+  days: number;
+  dose?: string;
+}
+
+export interface Medicine extends SchedulePhase {
   id: string;
   name: string;
   strength: string;
   form: string;
   /** The day the prescription was handed over, as YYYY-MM-DD. */
   receivedAt: string;
-  /** Whether the course runs in the morning or the evening. */
-  slot: "AM" | "PM";
-  /** Local times, HH:MM, ascending. */
-  times: string[];
-  /** Course length in days. */
-  days: number;
+  slot?: "AM" | "PM";
+  taper?: SchedulePhase[];
+  route?: string;
+  directions?: string;
   /** How much is in the pack, when the label says. */
   quantity?: number;
   unit?: string;
-  /** "as needed" has no course end; the countdown comes from the pack size. */
+  /** As-needed medicines are kept on file without scheduled doses. */
   prn?: boolean;
   createdAt: string;
 }
@@ -32,40 +36,78 @@ export interface Plan {
   daysLeft: number;
 }
 
+export type DoseStatus = "taken" | "skipped";
+export type DoseLog = Record<string, { status: DoseStatus; recordedAt: string }>;
+
+export interface ScheduledDose {
+  id: string;
+  medicine: Medicine;
+  dueAt: Date;
+  dose?: string;
+  phase: number;
+}
+
 const DAY = 86_400_000;
 
-/** Sensible times for a course that runs once, twice or three times a day. */
-export function defaultTimes(slot: "AM" | "PM", perDay: number): string[] {
-  const first = slot === "AM" ? "08:00" : "20:00";
-  if (perDay <= 1) return [first];
-  if (perDay === 2) return ["08:00", "20:00"];
-  return ["08:00", "14:00", "20:00"];
+export function localDateKey(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+export function localDate(key: string): Date {
+  const [year, month, day] = key.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+export function validTime(time: string): boolean {
+  return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time);
+}
+
+export function scheduleFor(medicine: Medicine, from?: Date, until?: Date): ScheduledDose[] {
+  if (medicine.prn) return [];
+  const start = localDate(medicine.receivedAt);
+  const firstDay = from ? dayGap(start, from) : 0;
+  const lastDay = until ? dayGap(start, until) : Infinity;
+  const phases = [medicine, ...(medicine.taper ?? [])];
+  const doses: ScheduledDose[] = [];
+  let offset = 0;
+  for (const [index, phase] of phases.entries()) {
+    const times = [...phase.times].sort();
+    for (let day = Math.max(offset, firstDay); day < Math.min(offset + phase.days, lastDay); day++) {
+      const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + day);
+      for (const time of times) {
+        const [hours, minutes] = time.split(":").map(Number);
+        const dueAt = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes);
+        doses.push({
+          id: `${medicine.id}:${localDateKey(date)}:${time}`,
+          medicine,
+          dueAt,
+          dose: phase.dose,
+          phase: index + 1,
+        });
+      }
+    }
+    offset += phase.days;
+  }
+  return doses;
 }
 
 export function dosesFor(medicine: Medicine): Date[] {
-  const [y, m, d] = medicine.receivedAt.split("-").map(Number);
-  const out: Date[] = [];
-  for (let day = 0; day < medicine.days; day++) {
-    for (const time of medicine.times) {
-      const [h, min] = time.split(":").map(Number);
-      out.push(new Date(y, m - 1, d + day, h, min, 0, 0));
-    }
-  }
-  return out;
+  return scheduleFor(medicine).map((dose) => dose.dueAt);
 }
 
 /** Whole calendar days between two moments — a course ending tomorrow morning
  *  has one day left, not two. */
 function dayGap(from: Date, to: Date): number {
-  const a = new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime();
-  const b = new Date(to.getFullYear(), to.getMonth(), to.getDate()).getTime();
-  return Math.round((b - a) / DAY);
+  const a = Date.UTC(from.getFullYear(), from.getMonth(), from.getDate());
+  const b = Date.UTC(to.getFullYear(), to.getMonth(), to.getDate());
+  return (b - a) / DAY;
 }
 
 export function planFor(medicine: Medicine, now: Date): Plan {
   const doses = dosesFor(medicine);
   const total = doses.length;
-  const end = doses[total - 1] ?? new Date(medicine.receivedAt);
+  const end = doses[total - 1] ?? localDate(medicine.receivedAt);
   const done = doses.filter((due) => due.getTime() <= now.getTime()).length;
   const next = doses.find((due) => due.getTime() > now.getTime()) ?? null;
   const daysLeft = Math.max(0, dayGap(now, end));
@@ -97,14 +139,6 @@ export function clockTime(d: Date): string {
 
 export function dayLabel(d: Date): string {
   return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
-}
-
-/** Days left on a course, in words a person would use. */
-export function daysLeftWords(days: number): string {
-  const n = Math.max(0, days);
-  if (n === 0) return "today";
-  if (n === 1) return "tomorrow";
-  return `in ${n} days`;
 }
 
 /** Labels print drug names in capitals. Read them as "Augmentin" rather than

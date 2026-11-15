@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { defaultTimes, displayName } from "./engine";
+import { displayName, validTime } from "./engine";
+import type { ReadResult } from "./reader";
 import { kindLabel } from "./kinds";
 
 /** The three pages between a photograph and a plan. One question each, the
@@ -99,10 +100,7 @@ export function FoundPage({
             {displayName(name)}
             {strength ? ` ${strength}` : ""}
           </h1>
-          <p className="lede">
-            This bottle scanned as {displayName(name)}
-            {strength ? `, ${strength}` : ""}. Did we get that right?
-          </p>
+          <p className="lede">Check the medicine and strength against the label.</p>
           <div className="form">
             <button className="primary" type="button" onClick={() => onYes(name, strength)}>
               Yes, that's right
@@ -128,156 +126,193 @@ export function FoundPage({
 
 export function ReceivedPage({
   receivedAt,
-  slot,
+  prn,
   onNext,
   onBack,
   onCancel,
 }: {
   receivedAt: string;
-  slot: "AM" | "PM";
-  onNext: (receivedAt: string, slot: "AM" | "PM") => void;
+  prn: boolean;
+  onNext: (date: string) => void;
   onBack: () => void;
   onCancel: () => void;
 }) {
   const [date, setDate] = useState(receivedAt);
-  const [when, setWhen] = useState<"AM" | "PM">(slot);
 
   return (
     <Sheet onCancel={onCancel}>
-      <h1>When did you receive it?</h1>
-      <p className="lede">We count the course from the day it was handed to you.</p>
-
-      <form
-        className="form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (date) onNext(date, when);
-        }}
-      >
-        <label className="label" htmlFor="received">
-          Date received
-        </label>
+      <h1>{prn ? "When did you get it?" : "When does the course start?"}</h1>
+      <form className="form" onSubmit={(event) => {
+        event.preventDefault();
+        if (date) onNext(date);
+      }}>
+        <label className="label" htmlFor="received">{prn ? "Date received" : "Start date"}</label>
         <input
-          id="received"
-          className="input"
-          type="date"
-          value={date}
-          max={new Date().toISOString().slice(0, 10)}
-          onChange={(e) => setDate(e.target.value)}
+          id="received" className="input" type="date" value={date} min="1900-01-01" max="9999-12-31" required
+          onChange={(event) => setDate(event.target.value)}
         />
-
-        <span className="label">AM or PM pill?</span>
-        <div className="seg" role="group" aria-label="AM or PM">
-          {(["AM", "PM"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              className={`seg-item ${when === option ? "on" : ""}`}
-              aria-pressed={when === option}
-              onClick={() => setWhen(option)}
-            >
-              {option === "AM" ? "Morning" : "Evening"}
-            </button>
-          ))}
-        </div>
-
-        <button className="primary" type="submit" disabled={!date}>
-          Continue
-        </button>
+        <button className="primary" type="submit" disabled={!date}>Continue</button>
       </form>
-
       <div className="page-actions">
-        <button className="quiet" type="button" onClick={onBack}>
-          Back
-        </button>
+        <button className="quiet" type="button" onClick={onBack}>Back</button>
       </div>
     </Sheet>
   );
 }
 
+interface DraftPhase {
+  times: string[];
+  days: string;
+  dose: string;
+}
+
+export interface DraftSchedule {
+  phases: DraftPhase[];
+  route: string;
+  prn: boolean;
+}
+
+const blankPhase: DraftPhase = { times: [], days: "", dose: "" };
+
+function validPhase(phase: DraftPhase): boolean {
+  const days = Number(phase.days);
+  return Number.isInteger(days) && days >= 1 && days <= 366
+    && phase.times.length > 0 && phase.times.every(validTime)
+    && new Set(phase.times).size === phase.times.length;
+}
+
 export function TimesPage({
-  slot,
-  times,
-  days,
+  schedule,
+  read,
   onNext,
   onBack,
   onCancel,
 }: {
-  slot: "AM" | "PM";
-  times: string[];
-  days: number;
-  onNext: (times: string[], days: number) => void;
-  onBack: () => void;
+  schedule: DraftSchedule;
+  read: ReadResult | null;
+  onNext: (schedule: DraftSchedule) => void;
+  onBack: (schedule: DraftSchedule) => void;
   onCancel: () => void;
 }) {
-  const [perDay, setPerDay] = useState(Math.min(3, Math.max(1, times.length)));
-  const [clock, setClock] = useState<string[]>(times);
-  const [length, setLength] = useState(days);
+  const [draft, setDraft] = useState(schedule);
+  const canSave = draft.prn || draft.phases.every(validPhase);
 
-  const setCount = (n: number) => {
-    setPerDay(n);
-    setClock(defaultTimes(slot, n));
+  const update = (index: number, change: Partial<DraftPhase>) => {
+    setDraft((state) => ({
+      ...state,
+      phases: state.phases.map((phase, i) => i === index ? { ...phase, ...change } : phase),
+    }));
   };
 
   return (
     <Sheet onCancel={onCancel}>
-      <h1>When do you take it?</h1>
-      <p className="lede">Every day of the course, at these times.</p>
-
-      <div className="seg" role="group" aria-label="Doses per day">
-        {[1, 2, 3].map((n) => (
-          <button
-            key={n}
-            type="button"
-            className={`seg-item ${perDay === n ? "on" : ""}`}
-            aria-pressed={perDay === n}
-            onClick={() => setCount(n)}
-          >
-            {n}× a day
-          </button>
-        ))}
-      </div>
-
-      <div className="times-row">
-        {clock.map((value, i) => (
+      <h1>Review the schedule</h1>
+      <p className="lede">
+        {read?.needsReview
+          ? "These directions need manual review. Enter the schedule only if you can confirm it."
+          : "Check the directions and choose the times to put on your calendar."}
+      </p>
+      {read?.directions ? (
+        <figure className="label-quote">
+          <figcaption>{read.source.startsWith("gemini") ? "Label text read with Gemini" : "Label text read on this device"}</figcaption>
+          <blockquote>{read.directions}</blockquote>
+        </figure>
+      ) : read ? (
+        <p className="lede">The scan didn’t find directions. Enter what your label says.</p>
+      ) : null}
+      <form className="form" onSubmit={(event) => {
+        event.preventDefault();
+        if (canSave) onNext(draft);
+      }}>
+        <label className="check-row">
           <input
-            key={i}
-            className="input"
-            type="time"
-            value={value}
-            aria-label={`Dose ${i + 1}`}
-            onChange={(e) => {
-              const next = [...clock];
-              next[i] = e.target.value;
-              setClock(next);
-            }}
+            type="checkbox" checked={draft.prn}
+            onChange={(event) => setDraft({ ...draft, prn: event.target.checked })}
           />
-        ))}
-      </div>
-
-      <span className="label wide">How many days is the course?</span>
-      <div className="days">
-        {[3, 5, 7, 10, 14, 30].map((n) => (
-          <button
-            key={n}
-            type="button"
-            className={`day ${length === n ? "on" : ""}`}
-            aria-pressed={length === n}
-            onClick={() => setLength(n)}
-          >
-            {n}
-          </button>
-        ))}
-      </div>
-
-      <button className="primary" type="button" onClick={() => onNext(clock, length)}>
-        Save this plan
-      </button>
-
+          As needed
+        </label>
+        <label className="label" htmlFor="dose-route">Route (optional)</label>
+        <input
+          className="input" id="dose-route" value={draft.route} maxLength={100}
+          onChange={(event) => setDraft({ ...draft, route: event.target.value })}
+        />
+        {draft.prn ? (
+          <>
+            <label className="label" htmlFor="phase-dose-0">Dose per use (optional)</label>
+            <input
+              className="input" id="phase-dose-0" value={draft.phases[0].dose} maxLength={100}
+              onChange={(event) => update(0, { dose: event.target.value })}
+            />
+            <p className="intake-note">This medicine appears under As needed without calendar entries.</p>
+          </>
+        ) : (
+          <>
+            {draft.phases.map((phase, index) => (
+              <fieldset className="intake-phase" key={index}>
+                <legend>{draft.phases.length > 1 ? `Phase ${index + 1}` : "Daily schedule"}</legend>
+                <label className="label" htmlFor={`phase-dose-${index}`}>Dose per use (optional)</label>
+                <input
+                  className="input" id={`phase-dose-${index}`} value={phase.dose} maxLength={100}
+                  onChange={(event) => update(index, { dose: event.target.value })}
+                />
+                <div className="intake-two">
+                  <label>
+                    <span className="label">Doses per day</span>
+                    <select
+                      className="input" required value={phase.times.length || ""}
+                      onChange={(event) => update(index, {
+                        times: Array.from({ length: Number(event.target.value) }, (_, i) => phase.times[i] ?? ""),
+                      })}
+                    >
+                      <option value="">Choose</option>
+                      {[1, 2, 3, 4].map((count) => <option key={count} value={count}>{count}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    <span className="label">Number of days</span>
+                    <input
+                      className="input" type="number" min="1" max="366" required value={phase.days}
+                      onChange={(event) => update(index, { days: event.target.value })}
+                    />
+                  </label>
+                </div>
+                {phase.times.length > 0 ? (
+                  <div className="intake-times">
+                    {phase.times.map((time, slot) => (
+                      <label key={slot}>
+                        <span className="label">Dose {slot + 1} time</span>
+                        <input
+                          className="input" type="time" value={time} required
+                          onChange={(event) => update(index, {
+                            times: phase.times.map((value, i) => i === slot ? event.target.value : value),
+                          })}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                ) : null}
+                {phase.times.filter(Boolean).length > new Set(phase.times.filter(Boolean)).size
+                  ? <p className="intake-note" role="status">Choose different times for each dose.</p> : null}
+                {draft.phases.length > 1 ? (
+                  <button
+                    className="quiet" type="button"
+                    onClick={() => setDraft({ ...draft, phases: draft.phases.filter((_, i) => i !== index) })}
+                  >Remove phase {index + 1}</button>
+                ) : null}
+              </fieldset>
+            ))}
+            {draft.phases.length < 6 ? (
+              <button
+                className="quiet" type="button"
+                onClick={() => setDraft({ ...draft, phases: [...draft.phases, blankPhase] })}
+              >Add a phase</button>
+            ) : null}
+          </>
+        )}
+        <button className="primary" type="submit" disabled={!canSave}>Save to calendar</button>
+      </form>
       <div className="page-actions">
-        <button className="quiet" type="button" onClick={onBack}>
-          Back
-        </button>
+        <button className="quiet" type="button" onClick={() => onBack(draft)}>Back</button>
       </div>
     </Sheet>
   );

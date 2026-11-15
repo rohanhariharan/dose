@@ -25,6 +25,9 @@ import gemini  # noqa: E402
 import read as reader  # noqa: E402
 
 HOST, PORT = "127.0.0.1", 8791
+APP_ORIGINS = {f"http://{host}:{port}" for host in ("localhost", HOST) for port in (5181, 4173)}
+IMAGE_TYPES = {"data:image/jpeg;base64": ".jpg", "data:image/png;base64": ".png"}
+MAX_IMAGE_BODY = 14 * 1024 * 1024
 FIELDS = (
     "name",
     "form",
@@ -33,6 +36,11 @@ FIELDS = (
     "unit",
     "perDay",
     "durationDays",
+    "dose",
+    "route",
+    "directions",
+    "phases",
+    "needsReview",
     "prn",
     "source",
     "escalated",
@@ -48,23 +56,37 @@ class Handler(BaseHTTPRequestHandler):
     def _chunk(self, data):
         self.wfile.write(f"{len(data):X}\r\n".encode() + data + b"\r\n")
         self.wfile.flush()
+
+    def _cors(self):
+        origin = self.headers.get("Origin")
+        if origin in APP_ORIGINS:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+            self.send_header("Access-Control-Allow-Headers", "content-type")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+
+    def _allow_app(self):
+        origin = self.headers.get("Origin")
+        if origin and origin not in APP_ORIGINS:
+            self.close_connection = True
+            self._send(403, {"error": "This origin cannot use the Dose reader"})
+            return False
+        return True
+
     def _send(self, status, payload):
         body = json.dumps(payload).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
-        # The app is served from a different port while developing.
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Headers", "content-type")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self._cors()
         self.end_headers()
         self.wfile.write(body)
 
     def do_OPTIONS(self):
+        if not self._allow_app():
+            return
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Headers", "content-type")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self._cors()
         self.end_headers()
 
     def do_GET(self):
@@ -74,6 +96,8 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, {"error": "not found"})
 
     def do_POST(self):
+        if not self._allow_app():
+            return
         route = self.path.split("?")[0]
         if route == "/chat/stream":
             self.handle_chat_stream()
@@ -87,19 +111,25 @@ class Handler(BaseHTTPRequestHandler):
 
         try:
             length = int(self.headers.get("Content-Length", "0"))
+            if length <= 0 or length > MAX_IMAGE_BODY:
+                self.close_connection = True
+                raise ValueError("invalid image size")
             body = json.loads(self.rfile.read(length))
             image = body["image"]
-            _, _, encoded = image.partition(",") if image.startswith("data:") else ("", "", image)
-            raw = base64.b64decode(encoded)
+            mime, _, encoded = image.partition(",") if image.startswith("data:") else ("", "", image)
+            suffix = IMAGE_TYPES[mime] if mime else ".jpg"
+            raw = base64.b64decode(encoded, validate=True)
+            if not raw or len(raw) > 10 * 1024 * 1024:
+                raise ValueError("invalid image size")
         except Exception as error:  # noqa: BLE001 - any bad body is the same answer
             self._send(400, {"error": f"bad request: {error}"})
             return
 
-        handle = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+        handle = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
         try:
             handle.write(raw)
             handle.close()
-            result = reader.read(handle.name)
+            result = reader.read(handle.name, allow_cloud=body.get("allowCloud") is True)
         except SystemExit as error:  # gemini.py exits on HTTP errors
             self._send(502, {"error": str(error)})
             return
@@ -130,7 +160,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
         self.send_header("Transfer-Encoding", "chunked")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self._cors()
         self.end_headers()
 
         def event(payload):

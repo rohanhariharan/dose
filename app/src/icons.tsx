@@ -40,6 +40,15 @@ export function ClockIcon() {
   );
 }
 
+export function CalendarIcon() {
+  return (
+    <svg {...base}>
+      <rect x="3" y="4.5" width="14" height="12.5" rx="2" />
+      <path d="M6.5 3v3M13.5 3v3M3 8.5h14M7 12h1M12 12h1" />
+    </svg>
+  );
+}
+
 export function SlidersIcon() {
   return (
     <svg {...base}>

@@ -1,10 +1,12 @@
 # Dose
 
-A local-first desktop app for one person's ongoing treatment: what they take, and when it's due.
+A local-first app for one person's ongoing treatment. Scan the label, confirm the directions, and see what's due on the calendar.
 
 Built for the **AI + Health** track of the Veritas AI International High School Hackathon 2026.
 
 > This project is a prototype and is not medical advice.
+
+[Hackathon write-up and evaluation](REPORT.md)
 
 ![Welcome](design/dose-1-welcome.jpg)
 
@@ -21,50 +23,39 @@ seconds of patience.
 
 ## What's built
 
-| Screen | State |
+| Feature | State |
 |---|---|
-| Welcome | done — dot-matrix scene, one way in |
-| Your name | done |
-| What you're keeping up with | done — regimen *shapes*, not diagnoses |
-| Home | done — greeting, today's doses, empty state |
-| Dock | done — Today, Medicines, History, Buddy, Settings (the middle two are still placeholders) |
-| Scan a medicine | done — live camera, a 360×480 box, and the shutter crops to exactly that box |
-| Confirm the read | done — the name, strength and kind, read for real; *"did we get that right?"* → yes / try again / enter manually |
-| Received + AM/PM | done — the day the prescription was handed over, morning or evening |
-| Times + course length | done — 1–3 doses a day at set times, 3–30 days |
-| Plan | done — a progress bar of doses behind you, then next dose, refill and the day the course ends |
-| Buddy | done — streams its replies, is grounded in the medicines on file, and can offer an action card ("turn on reminders?") instead of describing one |
-| Label → schedule | the reader is built (`lab/`), wired through a loopback bridge; the schedule is still asked for, not inferred |
-| Scheduler, notifications | not built |
+| Onboarding and Today | Saves the user's name, regimen preferences, and course cards |
+| Label scan | Reads a camera capture or a JPG/PNG using the local reader. Manual entry is available |
+| Schedule review | Shows the OCR directions and any recognized dose, route, frequency, and duration. The user chooses the clock times |
+| Prescription calendar | Shows the day's schedule, supports multiple course phases, and saves taken/skipped records |
+| As-needed medicines | Listed separately with no scheduled doses |
+| Buddy | Streams replies about the medicines on file when configured with Gemini |
+| Background reminders and desktop packaging | Planned |
 
-Onboarding is three pages with Typecode's two-dot-turned-three page flow; the choices persist to
-`localStorage` under `dose.profile`, so a reload lands on Home. **Start over** in the footer wipes it.
-
-| | |
-|---|---|
-| ![Name](design/dose-2-name.jpg) | ![Regimens](design/dose-3-regimens.jpg) |
-| ![Today](design/dose-5-today-dock.jpg) | ![Scan](design/dose-7-scan.jpg) |
-| ![Found](design/dose-9-found.jpg) | ![Plan](design/dose-12-plan.jpg) |
-| ![Buddy](design/dose-13-buddy.jpg) | |
-
-The reader picks its answer from a closed list of twelve kinds — tablet, capsule, inhaler, injection, drops, cream, ointment, gel, liquid, patch, spray, other — so the app never has to render a class it has no rule for. `app/src/kinds.ts` is the single list; the parser and the Gemini schema both constrain to it.
-
-Adding a medicine is four steps after the shutter: the read is confirmed before anything is
-saved (yes / try again / enter manually), then when the prescription was handed over and whether
-it's a morning or evening course, then how many doses a day, at what times, for how many days. The
-plan then answers the three questions that matter — when the next dose is, when the supply runs
-out, and when the course ends.
+The profile, plans, and dose records are stored in `localStorage` for this browser and origin. **Start over** on Today clears all three.
 
 ## Run it
 
+Use macOS with Xcode Command Line Tools, Python 3, and Node.js. The app was tested with Node.js 24.
+
+In one terminal, compile Apple Vision's reader and start the loopback bridge.
+
 ```bash
-cd app
-npm install
-npm run dev          # http://localhost:5181
+cd lab
+swiftc -O labelocr.swift -o labelocr
+python3 serve.py
 ```
 
-Vite + React + TypeScript, no build step needed to look at it. The Tauri shell is not wired up yet;
-it's the same React app and wrapping it is a `tauri init` away.
+In a second terminal, start the app.
+
+```bash
+cd app
+npm ci
+npm run dev
+```
+
+Open [localhost:5181](http://localhost:5181). Add a medicine with the camera, choose a JPG or PNG, or enter the details manually. Use the same browser and URL to reopen saved plans.
 
 ## Design
 
@@ -75,32 +66,19 @@ Baskerville at −0.015em) and an honest account of where this app is weak.
 Two deliberate departures from that reference: **paper is the default theme** (this is used at 7am,
 not at a desk — `data-theme="night"` switches it), and **body type is 14.5px** rather than 13.5px.
 
-## The AI, and why it isn't here yet
+## The label reader
 
-A reminder shell is not a machine-learning project, and the brief says a normal app built with AI
-coding tools "doesn't count on its own". The judged piece is **label → schedule extraction** —
-photograph the box, get what it is and how it is taken — measured field by field against a regex
-baseline on real medicines.
+Apple Vision transcribes the image on the Mac. The parser in `lab/directions.py` proposes straightforward daily schedules and explicit taper phases. The user sees the directions and confirms the plan before any doses appear. Unknown fields stay blank.
 
-It runs in two lanes, and the order matters:
+When Gemini is configured and the user opts in for a scan, an uncertain local read may send the photo to Gemini. Set `GEMINI_API_KEY` on the bridge or in the ignored `lab/.env` file to enable that option. Buddy sends the conversation and medicine-plan context to Gemini when you ask it a question.
 
-1. **On this machine.** Apple's Vision framework, wrapped in a 90-line Swift CLI
-   (`lab/labelocr.swift`), reads a label in about 60 ms. Free, offline, no key.
-2. **Gemini, only when the local read is unsure.** If Vision returns no name, or a name it does not
-   trust, the photograph is escalated to `gemini-3.1-flash-lite`, which handles glare, angles and
-   handwriting better — and is the only part of this app that sends anything off the device.
+Reproduce the local evaluation from the saved OCR snapshots at the repo root.
 
-The fusion rule is in `lab/read.py`: local first, escalate below 0.7 name confidence, merge the
-fields, and tell the caller which lane it used. On our own photographs the rule earns its place — a
-sharp canister reads locally with no network at all, and a frame with a blurred second label goes
-out and comes back correct.
+```bash
+python3 lab/benchmark.py
+```
 
-**The photo leaves the machine on that second path.** The app makes no claim about staying local:
-the welcome screen says what the product is for, and the disclosure lives here rather than in a
-promise the code cannot keep.
-
-Everything else stays on the machine: no account, no analytics, no health data stored anywhere but
-the app's own directory.
+On eight public test images and crops, the local reader matched all five annotated fields in **3/8** cases. The plain regex baseline scored **5/8**. See the [report](REPORT.md) for field-level results and failures.
 
 ## Also in this repo
 
@@ -111,4 +89,5 @@ It has its own README. Kept for the record; not part of this submission.
 
 - **Libre Baskerville** and **Inter**, both SIL Open Font License, bundled in `app/public/fonts`.
 - The dot-matrix renderer is adapted from Typecode's `PixelMatrix`.
-- Everything else is hand-written for this project. No icon library, no UI kit, no model API yet.
+- [Apple Vision](https://developer.apple.com/documentation/vision/recognizing-text-in-images) powers local OCR. [Gemini](https://ai.google.dev/gemini-api/docs) supports the optional cloud read and Buddy.
+- The evaluation sources and coding-tool credits are in the [write-up](REPORT.md).

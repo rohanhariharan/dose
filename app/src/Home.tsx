@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import {
   clockTime,
   dayLabel,
-  daysLeftWords,
   displayName,
   planFor,
+  scheduleFor,
   untilWords,
+  type DoseLog,
   type Medicine,
 } from "./engine";
 import type { Profile } from "./Onboarding";
@@ -19,15 +20,17 @@ function greeting(hour: number) {
 
 /** Home. With nothing scheduled it says what happens next and gets out of the
  *  way; with a course running it answers the three questions worth answering —
- *  next dose, next refill, when this ends. */
+ *  next scheduled dose, recorded doses, and when this ends. */
 export default function Home({
   profile,
   medicines,
+  log,
   onAdd,
   onReset,
 }: {
   profile: Profile;
   medicines: Medicine[];
+  log: DoseLog;
   onAdd: () => void;
   onReset: () => void;
 }) {
@@ -61,7 +64,7 @@ export default function Home({
           <p className="lede left">
             {medicines.length === 0
               ? "Nothing is scheduled yet."
-              : `${medicines.length} ${medicines.length === 1 ? "course" : "courses"} running.`}
+              : `${medicines.length} ${medicines.length === 1 ? "medicine" : "medicines"} on file.`}
           </p>
         </header>
 
@@ -89,33 +92,39 @@ export default function Home({
           <section className="plans">
             {medicines.map((m) => {
               const plan = planFor(m, now);
-              const pct = plan.total ? Math.round((plan.done / plan.total) * 100) : 0;
+              const taken = scheduleFor(m).filter((dose) => log[dose.id]?.status === "taken").length;
+              const pct = plan.total ? Math.round((taken / plan.total) * 100) : 0;
               return (
                 <article className="plan" key={m.id}>
                   <div className="plan-head">
                     <h2>
                       {displayName(m.name)} {m.strength}
                     </h2>
+                    {m.prn ? <p className="plan-sub">As needed</p> : (
                     <div className="plan-progress">
                       <div
                         className="bar"
                         role="progressbar"
                         aria-valuemin={0}
                         aria-valuemax={plan.total}
-                        aria-valuenow={plan.done}
-                        aria-label={`${plan.done} of ${plan.total} doses`}
+                        aria-valuenow={taken}
+                        aria-label={`${taken} of ${plan.total} doses recorded as taken`}
                       >
                         <i style={{ width: `${pct}%` }} />
                       </div>
                       <div className="plan-meta">
                         <span>
-                          {plan.done} of {plan.total} doses
+                          {taken} of {plan.total} doses taken
                         </span>
                         <span>{pct}%</span>
                       </div>
                     </div>
+                    )}
                   </div>
 
+                  {m.prn ? (
+                    m.directions ? <p className="plan-sub">{m.directions}</p> : null
+                  ) : (
                   <dl className="plan-kv">
                     <div>
                       <dt>Next dose</dt>
@@ -124,19 +133,14 @@ export default function Home({
                         <span className="then">
                           {plan.next
                             ? untilWords(plan.next, now)
-                            : plan.remaining === 0
-                              ? "course finished"
-                              : "nothing left"}
+                            : "no upcoming doses"}
                         </span>
                       </dd>
                     </div>
                     <div>
-                      <dt>Refill</dt>
+                      <dt>Upcoming</dt>
                       <dd>
-                        {plan.remaining === 0 ? "none left" : daysLeftWords(plan.daysLeft)}
-                        <span className="then">
-                          {plan.remaining === 0 ? "all doses taken" : `${plan.remaining} of ${plan.total} left`}
-                        </span>
+                        {plan.remaining} {plan.remaining === 1 ? "dose" : "doses"}
                       </dd>
                     </div>
                     <div>
@@ -147,6 +151,7 @@ export default function Home({
                       </dd>
                     </div>
                   </dl>
+                  )}
                 </article>
               );
             })}

@@ -9,6 +9,11 @@ export interface ReadResult {
   unit: string | null;
   perDay: number | null;
   durationDays: number | null;
+  dose: string | null;
+  route: string | null;
+  directions: string | null;
+  phases: { perDay: number | null; days: number | null; dose: string }[];
+  needsReview: boolean;
   prn: boolean;
   source: string;
   escalated: boolean;
@@ -17,12 +22,13 @@ export interface ReadResult {
 
 const ENDPOINT = "http://127.0.0.1:8791";
 
-export async function readLabel(dataUrl: string): Promise<ReadResult | null> {
+export async function readLabel(dataUrl: string, allowCloud: boolean, signal: AbortSignal): Promise<ReadResult | null> {
   try {
     const response = await fetch(`${ENDPOINT}/read`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ image: dataUrl }),
+      body: JSON.stringify({ image: dataUrl, allowCloud }),
+      signal,
     });
     if (!response.ok) return null;
     const data = (await response.json()) as ReadResult;

@@ -21,6 +21,8 @@ import sys
 import urllib.error
 import urllib.request
 
+from directions import parse_directions
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite")
 ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models"
@@ -49,10 +51,8 @@ it empty and list its name in "missing".
 "name" is the medicine as printed, without the strength or the dosage form.
 "strength" is the amount per unit, e.g. "750 mg", "90 mcg/actuation".
 "quantity_value"/"quantity_unit" is how much is in the pack, e.g. 200 inhalations, 21 tablets.
-"doses_per_day" only when the label states a fixed number of doses per day; otherwise 0.
-"duration_days" only when the label states a course length; otherwise 0.
-"as_needed" is true for "as needed", "PRN", "when required".
-"directions_text" is the directions line verbatim, or empty.
+"directions_text" is the full directions verbatim, with every phase, condition and limit, or empty.
+When the image shows different medicines, return only fields belonging to a single readable label.
 "confidence" is your own certainty in the name and strength, 0 to 1.
 
 "form" must be exactly one of: {", ".join(KINDS)}. Judge it from the packaging: a pressurised
@@ -67,9 +67,6 @@ SCHEMA = {
         "form": {"type": "STRING", "enum": KINDS},
         "quantity_value": {"type": "INTEGER"},
         "quantity_unit": {"type": "STRING"},
-        "doses_per_day": {"type": "INTEGER"},
-        "duration_days": {"type": "INTEGER"},
-        "as_needed": {"type": "BOOLEAN"},
         "directions_text": {"type": "STRING"},
         "missing": {"type": "ARRAY", "items": {"type": "STRING"}},
         "confidence": {"type": "NUMBER"},
@@ -181,10 +178,7 @@ def read(path, model=MODEL):
         "strength": (raw.get("strength") or "").strip(),
         "quantity": raw.get("quantity_value") or None,
         "unit": (raw.get("quantity_unit") or "").strip() or None,
-        "perDay": raw.get("doses_per_day") or None,
-        "durationDays": raw.get("duration_days") or None,
-        "prn": bool(raw.get("as_needed")),
-        "directions": (raw.get("directions_text") or "").strip(),
+        **parse_directions((raw.get("directions_text") or "").strip()),
         "confidence": round(float(raw.get("confidence") or 0), 2),
         "missing": raw.get("missing") or [],
         "source": f"gemini:{MODEL}",

@@ -23,6 +23,8 @@ import statistics
 import subprocess
 import sys
 
+from directions import direction_block, parse_directions
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 OCR = os.path.join(HERE, "labelocr")
 
@@ -64,7 +66,7 @@ FORMS = [
 ]
 
 STRENGTH = re.compile(
-    r"(\d+(?:[.,]\d+)?)\s*(mcg|µg|ug|mg|g|ml|%)\b(?:\s*/\s*(?:dose|actuation|puff|spray))?",
+    r"(\d+(?:[.,]\d+)?)\s*(mcg\b|µg\b|ug\b|mg\b|g\b|ml\b|%)(?:\s*/\s*(?:dose|actuation|puff|spray))?",
     re.IGNORECASE,
 )
 
@@ -72,20 +74,6 @@ QUANTITY = re.compile(
     r"(\d+)\s*(?:metered\s+)?(inhalations?|actuations?|puffs?|tablets?|tabs?|capsules?|caps?|doses?|ml)\b",
     re.IGNORECASE,
 )
-
-PER_DAY = [
-    (re.compile(r"\b(?:four|4)\s+times\s+(?:a|per)\s+day", re.I), 4),
-    (re.compile(r"\b(?:three|3)\s+times\s+(?:a|per)\s+day", re.I), 3),
-    (re.compile(r"\b(?:twice|two|2)\s+(?:times\s+)?(?:a|per)\s+day|\b(?:twice|two)\s+daily\b", re.I), 2),
-    (re.compile(r"\bonce\s+(?:a|per)\s+day|\bdaily\b|\bevery\s+day\b", re.I), 1),
-    (re.compile(r"\b(?:bid|bd)\b", re.I), 2),
-    (re.compile(r"\b(?:tid|tds)\b", re.I), 3),
-    (re.compile(r"\b(?:qid|qds)\b", re.I), 4),
-]
-
-DURATION = re.compile(r"\bfor\s+(\d+)\s*(day|days|week|weeks)\b", re.I)
-PRN = re.compile(r"\bas\s+needed\b|\bprn\b|\bwhen\s+required\b", re.I)
-
 
 def ocr(path):
     if not os.path.exists(OCR):
@@ -151,11 +139,19 @@ def parse(page):
 
     evidence = {}
     confidence = {}
+    directions = direction_block(line["text"] for line in lines)
+    direction_lines = set(directions.lower().splitlines())
 
     # Name: the block, with any form phrase removed and the rest kept.
-    word_lines = [l for l in lines if not NOISE.search(l["text"].strip())]
+    word_lines = [
+        line for line in lines
+        if not NOISE.search(line["text"].strip())
+        and line["text"].strip().lstrip("•▪■–- ").lower() not in direction_lines
+    ]
     raw_name, name_conf = pick_name(word_lines)
     name = raw_name
+    if raw_name:
+        evidence["name"] = raw_name
     form = None
     for word, kind in FORMS:
         if word in raw_name.lower():
@@ -203,23 +199,13 @@ def parse(page):
         ndc = ndc_match.group(1)
         evidence["ndc"] = ndc_match.group(0)
 
-    per_day = None
-    for pattern, count in PER_DAY:
-        if pattern.search(flat):
-            per_day = count
-            evidence["perDay"] = pattern.search(flat).group(0)
-            break
-
-    duration = None
-    duration_match = DURATION.search(flat)
-    if duration_match:
-        n = int(duration_match.group(1))
-        duration = n * 7 if duration_match.group(2).lower().startswith("week") else n
-        evidence["durationDays"] = duration_match.group(0)
-
-    prn = bool(PRN.search(flat))
-    if prn:
-        evidence["prn"] = "as needed"
+    instructions = parse_directions(directions)
+    for field in ("perDay", "durationDays", "prn"):
+        if instructions[field]:
+            evidence[field] = instructions["directions"]
+    for field in ("dose", "route"):
+        if instructions[field]:
+            evidence[field] = instructions[field]
 
     missing = [
         field
@@ -227,14 +213,15 @@ def parse(page):
             ("name", name),
             ("strength", strength),
             ("quantity", quantity),
-            ("perDay", per_day),
-            ("durationDays", duration),
+            ("dose", instructions["dose"]),
+            ("route", instructions["route"]),
+            ("perDay", instructions["perDay"]),
+            ("durationDays", instructions["durationDays"]),
         )
         if not value
     ]
 
     # Vision's own confidence, averaged over the block the field came from.
-    by_text = {l["text"].strip(): l["conf"] for l in lines}
     confidence["name"] = round(name_conf, 2)
     confidence["ocr"] = round(statistics.mean([l["conf"] for l in lines] or [0]), 2)
 
@@ -244,9 +231,7 @@ def parse(page):
         "strength": strength,
         "quantity": quantity,
         "unit": unit,
-        "perDay": per_day,
-        "durationDays": duration,
-        "prn": prn,
+        **instructions,
         "ndc": ndc,
         "evidence": evidence,
         "missing": missing,

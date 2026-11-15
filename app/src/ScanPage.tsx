@@ -15,37 +15,50 @@ export default function ScanPage({
   onManual,
 }: {
   onClose: () => void;
-  onCapture: (dataUrl: string) => void;
+  onCapture: (dataUrl: string, allowCloud: boolean, signal: AbortSignal) => Promise<void>;
   onManual: () => void;
 }) {
   const video = useRef<HTMLVideoElement>(null);
   const frame = useRef<HTMLDivElement>(null);
   const stream = useRef<MediaStream | null>(null);
+  const cameraRequest = useRef(0);
+  const pending = useRef<AbortController | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [photo, setPhoto] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [allowCloud, setAllowCloud] = useState(false);
 
   const startCamera = async () => {
+    const request = ++cameraRequest.current;
     try {
       setBlocked(false);
       setNote(null);
-      stream.current = await navigator.mediaDevices.getUserMedia({
+      const next = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 } },
         audio: false,
       });
+      if (request !== cameraRequest.current) {
+        next.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      stream.current?.getTracks().forEach((track) => track.stop());
+      stream.current = next;
       if (video.current) {
         video.current.srcObject = stream.current;
         await video.current.play().catch(() => {});
       }
     } catch (error) {
+      if (request !== cameraRequest.current) return;
       const denied =
         error instanceof DOMException &&
         (error.name === "NotAllowedError" || error.name === "NotFoundError");
-      setBlocked(denied);
+      setBlocked(true);
       setNote(
         denied
-          ? "The camera is blocked for this page. Allow it, then try again."
-          : "The camera did not start. Try again, or type the name.",
+          ? "Camera unavailable. Choose a label photo or enter the medicine manually."
+          : "The camera did not start. Choose a photo or try again.",
       );
     }
   };
@@ -53,6 +66,8 @@ export default function ScanPage({
   useEffect(() => {
     void startCamera();
     return () => {
+      cameraRequest.current++;
+      pending.current?.abort();
       stream.current?.getTracks().forEach((t) => t.stop());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -65,6 +80,43 @@ export default function ScanPage({
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [onClose]);
+
+  const readPhoto = async (load: () => Promise<string>) => {
+    if (pending.current) return;
+    const request = new AbortController();
+    pending.current = request;
+    setBusy(true);
+    setNote("Reading the label…");
+    try {
+      const dataUrl = await load();
+      if (request.signal.aborted) return;
+      setPhoto(dataUrl);
+      await onCapture(dataUrl, allowCloud, request.signal);
+    } catch {
+      if (!request.signal.aborted) {
+        setPhoto(null);
+        setNote("Couldn’t read this photo. Choose a JPG or PNG, or enter it manually.");
+      }
+    } finally {
+      if (!request.signal.aborted) {
+        pending.current = null;
+        setBusy(false);
+      }
+    }
+  };
+
+  const choosePhoto = (file: File) => {
+    if (!["image/jpeg", "image/png"].includes(file.type) || file.size > 10 * 1024 * 1024) {
+      setNote("Choose a JPG or PNG up to 10 MB.");
+      return;
+    }
+    void readPhoto(() => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject();
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    }));
+  };
 
   /** The part of the video that is actually inside the frame, in source pixels. */
   const cropRect = () => {
@@ -110,9 +162,7 @@ export default function ScanPage({
       ?.drawImage(v, rect.x, rect.y, rect.w, rect.h, 0, 0, canvas.width, canvas.height);
 
     const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-    setPhoto(dataUrl);
-    setNote("Reading the label…");
-    onCapture(dataUrl);
+    void readPhoto(async () => dataUrl);
   };
 
   return (
@@ -137,31 +187,37 @@ export default function ScanPage({
       </div>
 
       <footer className="scan-foot">
-        <p className="scan-hint">{note ?? "Fit the label in the box."}</p>
+        <p className="scan-hint" role="status">{note ?? "Fit the label in the box."}</p>
 
-        {photo ? (
-          <button
-            className="scan-retake"
-            type="button"
-            onClick={() => {
-              setPhoto(null);
-              setNote(null);
-            }}
-          >
-            Retake
-          </button>
-        ) : blocked ? (
+        {!busy ? (
+          <>
+          {blocked ? (
+            <button className="scan-cta" type="button" onClick={() => void startCamera()}>Retry camera</button>
+          ) : (
+            <button className="shutter" type="button" onClick={capture} aria-label="Take photo" />
+          )}
           <div className="scan-choice">
-            <button className="scan-cta" type="button" onClick={() => void startCamera()}>
-              Turn on camera
-            </button>
-            <button className="quiet scan-manual" type="button" onClick={onManual}>
-              Enter it manually
-            </button>
+            <button className="scan-retake" type="button" onClick={() => fileInput.current?.click()}>Choose a label photo</button>
+            <button className="quiet scan-manual" type="button" onClick={onManual}>Enter manually</button>
           </div>
-        ) : (
-          <button className="shutter" type="button" onClick={capture} aria-label="Take photo" />
-        )}
+          <input
+            ref={fileInput}
+            type="file"
+            accept="image/jpeg,image/png"
+            aria-label="Label photo"
+            hidden
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              event.currentTarget.value = "";
+              if (file) choosePhoto(file);
+            }}
+          />
+          <label className="scan-consent">
+            <input type="checkbox" checked={allowCloud} onChange={(event) => setAllowCloud(event.target.checked)} />
+            Send this photo to Gemini if the local read is uncertain
+          </label>
+          </>
+        ) : null}
       </footer>
     </div>
   );
