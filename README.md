@@ -25,13 +25,13 @@ seconds of patience.
 
 | Feature | State |
 |---|---|
-| Onboarding and Today | Saves the user's name and regimen preferences. Today shows due and upcoming doses and lets the user record taken or skipped doses |
+| Onboarding and Today | Saves the user's name and regimen preferences. Today shows due and upcoming doses, lets the user record taken or skipped doses, flags anything the past week left unrecorded, and warns when a course runs out within seven days |
 | Label scan | Reads a camera capture or a JPG/PNG using the local reader. Manual entry is available |
 | Schedule review | Shows the OCR directions and any recognized dose, route, frequency, and duration. The user chooses the clock times |
 | Prescription calendar | Shows the day's schedule, supports multiple course phases, and saves taken/skipped records |
 | As-needed medicines | Listed separately with no scheduled doses |
 | Medicines and History | Shows schedules, taper phases, label text, and dose records |
-| Settings | Change the profile name, review data use, or clear saved data |
+| Settings | Paper or night, copy today's schedule as a message for a carer, download everything as JSON, review data use, or clear saved data |
 | Buddy | Answers schedule questions and opens app screens when configured with Gemini |
 | Background reminders and desktop packaging | Planned |
 

@@ -73,6 +73,13 @@ export default function App() {
     return saved;
   };
 
+  // The theme is a preference, not a build: apply it before first paint of
+  // anything larger than the welcome card.
+  useEffect(() => {
+    const saved = localStorage.getItem("dose.theme");
+    if (saved === "night" || saved === "paper") document.documentElement.dataset.theme = saved;
+  }, []);
+
   useEffect(() => {
     const refresh = () => setNow(new Date());
     const timer = window.setInterval(refresh, 15_000);
@@ -287,6 +294,7 @@ export default function App() {
             now={now}
             onAdd={addMedicine}
             onRecord={recordDose}
+            onOpenHistory={() => setView("history")}
           />
         ) : view === "medicines" ? (
           <MedicinesPage medicines={medicines} now={now} onAdd={addMedicine} />

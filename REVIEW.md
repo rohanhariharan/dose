@@ -42,7 +42,7 @@ answers "what is due today" without a menu in the way.
 | **Review** | the label text verbatim, then name, strength, kind, route, dose, frequency, duration and any taper phases — every field editable |
 | **Schedule** | clock times per phase; a taper is a list of phases, each with its own days, dose and times |
 | **Calendar** | the month, with the day's doses broken out; taken and skipped are recorded per dose |
-| **Today** | what is due now, with a progress bar for the course |
+| **Today** | what is due now, what the week left unrecorded, and which courses run out this week |
 | **Medicines / History** | what is on file, and what actually happened |
 | **Buddy** | chat grounded in the medicines on file; streams, and can offer an action card |
 | **Settings** | name, a plain statement of what is stored and what is sent, and a full reset |
@@ -119,8 +119,9 @@ claim to be.
    synthetic stream and the crop maths checked against the frame — but the video does not prove it.
 3. **Nothing schedules.** Buddy can ask the browser for notification permission and fire a test
    notification; there is no scheduler behind it, and nothing fires when the app is closed.
-4. **Storage is this browser, this origin.** No account, no sync — which is the point — but clearing
-   site data loses the history, and the same person on two machines has two apps.
+4. **Storage is this browser, this origin.** No account and no sync — which is the point — but the
+   same person on two machines has two apps. Export gives you the data back as a file; it does not
+   put it anywhere else.
 5. **As-needed medicines have no run-out maths.** A 200-actuation inhaler at 2 puffs twice a day is a
    50-day supply; today the app lists it and stops there.
 6. **Tapers are manual.** The parser can propose phases, but the diagram case is unsolved and the

@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import DoseList, { type RecordDose } from "./DoseList";
 import { clockTime, dayLabel, displayName, localDate, localDateKey, planFor, scheduleFor, type DoseLog, type Medicine, type ScheduledDose } from "./engine";
+import { readDoseLog, readMedicines, readProfile } from "./storage";
 import { kindLabel } from "./kinds";
 import type { Profile } from "./Onboarding";
 
@@ -130,6 +131,63 @@ export function SettingsPage({
   const [name, setName] = useState(profile.name);
   const [saved, setSaved] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [theme, setTheme] = useState<"paper" | "night">(() =>
+    document.documentElement.dataset.theme === "night" ? "night" : "paper",
+  );
+
+  /** The day's doses, as a plain message a carer can act on. */
+  const copyPlan = async () => {
+    const medicines = readMedicines();
+    const log = readDoseLog();
+    const start = localDate(localDateKey(new Date()));
+    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
+    const doses = medicines
+      .flatMap((medicine) => scheduleFor(medicine, start, end))
+      .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
+
+    const lines = doses.length
+      ? doses.map((dose) => {
+          const entry = log[dose.id];
+          const name = `${displayName(dose.medicine.name)} ${dose.medicine.strength}`.trim();
+          const what = [dose.dose, dose.medicine.route].filter(Boolean).join(", ");
+          const state = entry ? ` — ${entry.status}` : "";
+          return `${clockTime(dose.dueAt)}  ${name}${what ? ` — ${what}` : ""}${state}`;
+        })
+      : ["Nothing scheduled today."];
+
+    const text = [
+      `Dose — ${new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}`,
+      ...lines,
+      "",
+      "Prototype — not medical advice.",
+    ].join("\n");
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2200);
+    } catch {
+      window.prompt("Copy today's schedule", text);
+    }
+  };
+
+  /** Everything on file, as one file the person owns. */
+  const download = () => {
+    const data = {
+      exportedAt: new Date().toISOString(),
+      profile: readProfile(),
+      medicines: readMedicines(),
+      doses: readDoseLog(),
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `dose-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const save = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -151,6 +209,41 @@ export function SettingsPage({
           <button className="primary" type="submit" disabled={name.trim() === profile.name}>Save name</button>
           {saved ? <p className="intake-note" role="status">Name saved.</p> : null}
         </form>
+      </section>
+
+      <section className="calendar-panel today-doses">
+        <h2>Appearance</h2>
+        <p className="record-muted">Paper for daylight, night for a dark kitchen.</p>
+        <div className="seg" role="group" aria-label="Theme">
+          {(["paper", "night"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              className={`seg-item ${theme === option ? "on" : ""}`}
+              aria-pressed={theme === option}
+              onClick={() => {
+                setTheme(option);
+                document.documentElement.dataset.theme = option;
+                localStorage.setItem("dose.theme", option);
+              }}
+            >
+              {option === "paper" ? "Paper" : "Night"}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="calendar-panel today-doses">
+        <h2>Take it with you</h2>
+        <p className="record-muted">Copy today's doses as a message for whoever helps out, or keep a copy of everything on file.</p>
+        <div className="calendar-actions">
+          <button className="calendar-button" type="button" onClick={() => void copyPlan()}>
+            {copied ? "Copied" : "Copy today's schedule"}
+          </button>
+          <button className="quiet" type="button" onClick={download}>
+            Download my data
+          </button>
+        </div>
       </section>
 
       <section className="calendar-panel today-doses">
