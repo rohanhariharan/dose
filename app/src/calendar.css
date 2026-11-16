@@ -195,3 +195,43 @@
   image-rendering: pixelated;
 }
 .msg.thinking { display: flex; align-items: center; }
+
+.reader-off {
+  display: block;
+  margin-top: 4px;
+  color: var(--faint);
+  font-size: 11px;
+}
+.reader-off a { color: var(--muted); }
+.home-foot { flex-wrap: wrap; }
+
+/* Printing the month is for the fridge door, so: no chrome, no buttons, black
+   on white, and the grid at full width. */
+@media print {
+  .dock,
+  .fab,
+  .calendar-actions,
+  .calendar-nav,
+  .quiet,
+  .reader-off {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+    color: #000;
+  }
+  .app,
+  .calendar,
+  .home {
+    padding: 0;
+    min-height: 0;
+  }
+  .calendar-panel {
+    border-color: #ccc;
+    background: #fff;
+    break-inside: avoid;
+  }
+  .calendar-grid button {
+    border-color: #ddd;
+  }
+}

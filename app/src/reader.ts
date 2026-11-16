@@ -22,6 +22,16 @@ export interface ReadResult {
 
 const ENDPOINT = "http://127.0.0.1:8791";
 
+/** Is the local reader up? Used only to say so honestly on the public demo. */
+export async function readerOnline(): Promise<boolean> {
+  try {
+    const response = await fetch(`${ENDPOINT}/health`, { signal: AbortSignal.timeout(1500) });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function readLabel(dataUrl: string, allowCloud: boolean, signal: AbortSignal): Promise<ReadResult | null> {
   try {
     const response = await fetch(`${ENDPOINT}/read`, {

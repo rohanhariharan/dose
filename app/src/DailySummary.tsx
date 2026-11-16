@@ -21,7 +21,7 @@ function cached(): string | null {
   }
 }
 
-export default function DailySummary({ facts }: { facts: string }) {
+export default function DailySummary({ facts, readerUp }: { facts: string; readerUp: boolean | null }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -61,30 +61,32 @@ export default function DailySummary({ facts }: { facts: string }) {
 
   // Written on arrival, from cache if the session already has it.
   useEffect(() => {
-    if (ran.current) return;
+    if (readerUp !== true || ran.current) return;
     ran.current = true;
     void run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [readerUp]);
 
   return (
     <section className="calendar-panel today-doses daily-summary" aria-labelledby="summary-title">
       <header className="today-doses-head">
         <h2 id="summary-title">Today, in a line</h2>
-        {started && !busy ? (
+        {started && !busy && readerUp !== false ? (
           <button className="quiet" type="button" onClick={() => void run(true)}>
             Again
           </button>
         ) : null}
       </header>
 
-      {failed ? (
+      {readerUp === false ? (
+        <p className="record-muted">The daily summary needs the local reader. Everything else on this screen works.</p>
+      ) : failed ? (
         <p className="calendar-empty">
           Couldn’t reach the writer. Start it with <code>lab/serve.py</code> and try again.
         </p>
       ) : (
         <p className="summary-text" aria-live="polite">
-          {text || (busy ? "…" : "")}
+          {text || (busy ? "…" : readerUp === null ? "…" : "")}
         </p>
       )}
     </section>

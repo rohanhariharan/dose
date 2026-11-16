@@ -28,6 +28,7 @@ export default function Home({
   onAdd,
   onRecord,
   onOpenHistory,
+  readerUp,
 }: {
   profile: Profile;
   medicines: Medicine[];
@@ -36,6 +37,7 @@ export default function Home({
   onAdd: () => void;
   onRecord: RecordDose;
   onOpenHistory: () => void;
+  readerUp: boolean | null;
 }) {
   const start = localDate(localDateKey(now));
   const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
@@ -98,7 +100,7 @@ export default function Home({
           </section>
         ) : (
           <>
-            <DailySummary facts={facts} />
+            <DailySummary facts={facts} readerUp={readerUp} />
 
             <section className="calendar-panel today-doses" aria-labelledby="today-doses">
               <header className="today-doses-head">
@@ -170,7 +172,15 @@ export default function Home({
           </>
         )}
 
-        <footer className="home-foot">Prototype · not medical advice</footer>
+        <footer className="home-foot">
+          <span>Prototype · not medical advice</span>
+          {readerUp === false ? (
+            <span className="reader-off">
+              Static demo — the label reader runs locally.{" "}
+              <a href="https://github.com/rohanhariharan/dose#running-the-reader">How to run it</a>
+            </span>
+          ) : null}
+        </footer>
       </div>
     </main>
   );

@@ -64,9 +64,14 @@ export default function Calendar({
           <h1>Prescription calendar</h1>
           <p className="lede left">Select a day to see your scheduled doses.</p>
         </div>
-        <button className="calendar-button" type="button" onClick={() => setSelected(localDateKey(new Date()))}>
-          Today
-        </button>
+        <div className="calendar-actions">
+          <button className="calendar-button" type="button" onClick={() => window.print()}>
+            Print
+          </button>
+          <button className="calendar-button" type="button" onClick={() => setSelected(localDateKey(new Date()))}>
+            Today
+          </button>
+        </div>
       </header>
       <div className="calendar-panels">
         <section className="calendar-panel" aria-label="Month">

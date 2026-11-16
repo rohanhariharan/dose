@@ -9,7 +9,7 @@ import { PlusIcon } from "./icons";
 import { FoundPage, ReceivedPage, TimesPage, type DraftSchedule } from "./Intake";
 import { clockTime, dayLabel, localDateKey, planFor, type DoseStatus, type Medicine } from "./engine";
 import { asKind } from "./kinds";
-import { readLabel, type ReadResult } from "./reader";
+import { readLabel, readerOnline, type ReadResult } from "./reader";
 import { NamePage, RegimensPage, type Profile } from "./Onboarding";
 import { HistoryPage, MedicinesPage, SettingsPage } from "./Records";
 import ScanPage from "./ScanPage";
@@ -65,6 +65,7 @@ export default function App() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [medicines, setMedicines] = useState(readMedicines);
   const [about, setAbout] = useState<AboutYou>(() => readAbout());
+  const [readerUp, setReaderUp] = useState<boolean | null>(null);
   const [doseLog, setDoseLog] = useState(readDoseLog);
   const [storageNotice, setStorageNotice] = useState("");
   const [now, setNow] = useState(() => new Date());
@@ -74,6 +75,18 @@ export default function App() {
     if (!saved) setStorageNotice("Dose couldn’t save to this browser. Changes may be lost on reload.");
     return saved;
   };
+
+  // The public build has no reader behind it. Say so once, quietly, rather than
+  // letting a judge discover it by watching a scan fail.
+  useEffect(() => {
+    let alive = true;
+    void readerOnline().then((up) => {
+      if (alive) setReaderUp(up);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // The theme is a preference, not a build: apply it before first paint of
   // anything larger than the welcome card.
@@ -302,6 +315,7 @@ export default function App() {
             onAdd={addMedicine}
             onRecord={recordDose}
             onOpenHistory={() => setView("history")}
+            readerUp={readerUp}
           />
         ) : view === "medicines" ? (
           <MedicinesPage medicines={medicines} now={now} onAdd={addMedicine} />
