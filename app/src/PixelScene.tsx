@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-/** A one-bit dot-matrix panel, ported from Typecode's PixelMatrix.
+/** A one-bit dot-matrix panel, adapted from an earlier desktop project.
  *
  *  Each cell is drawn at 3px (a 2px dot with a 1px gap) and scaled with
  *  `image-rendering: pixelated`, so every logical pixel stays visible. Twelve

@@ -1,5 +1,4 @@
-/* Pages two and three, and home. The page flow is Typecode's sign-in
-   (.login, src/styles.css ≈4811): one 420px column, dots above, no dividers,
+/* The page flow: one 420px column, dots above, no dividers,
    distance doing the separating. */
 
 .page {

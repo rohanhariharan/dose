@@ -61,9 +61,9 @@ Open [localhost:5181](http://localhost:5181). Add a medicine with the camera, ch
 
 ## Design
 
-The visual language is lifted from Typecode — the same serif, the same quiet geometry, the same page
-flow. `REVIEW.md` has the numbers (420px column, 24px card radius, 6px dots at a 7px gap, 31px Libre
-Baskerville at −0.015em) and an honest account of where this app is weak.
+A paper surface, a serif for titles, one column and a lot of air. `REVIEW.md` has the numbers
+(420px column, 24px card radius, 6px step dots at a 7px gap, 34px Libre Baskerville at −0.028em) and
+an honest account of where the app is weak.
 
 Two deliberate departures from that reference: **paper is the default theme** (this is used at 7am,
 not at a desk — `data-theme="night"` switches it), and **body type is 14.5px** rather than 13.5px.
@@ -90,6 +90,6 @@ It has its own README. Kept for the record; not part of this submission.
 ## Credits
 
 - **Libre Baskerville** and **Inter**, both SIL Open Font License, bundled in `app/public/fonts`.
-- The dot-matrix renderer is adapted from Typecode's `PixelMatrix`.
+- The dot-matrix renderer is adapted from an earlier desktop project of ours.
 - [Apple Vision](https://developer.apple.com/documentation/vision/recognizing-text-in-images) powers local OCR. [Gemini](https://ai.google.dev/gemini-api/docs) supports the optional cloud read and Buddy.
 - The evaluation sources and coding-tool credits are in the [write-up](REPORT.md).

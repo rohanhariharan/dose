@@ -1,5 +1,5 @@
 /** The dock icons. One stroke weight, 1.6, round caps — the same register as
- *  Typecode's Hugeicons set, drawn here so the app carries no icon dependency. */
+ *  Stroked at one weight and bundled here, so the app carries no icon dependency. */
 
 const base = {
   width: 18,

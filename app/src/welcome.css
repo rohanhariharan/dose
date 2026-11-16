@@ -1,6 +1,4 @@
-/* The welcome screen. Geometry follows Typecode's first-open modal
-   (.onboarding-modal, src/styles.css ≈3459); the page flow, the dots and the
-   single 420px column follow its sign-in (.login, ≈4811). */
+/* The welcome card: art at 2:1, then the copy, then one way in. */
 
 .welcome {
   min-height: 100%;
