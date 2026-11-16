@@ -60,6 +60,22 @@ npm run dev
 
 Open [localhost:5181](http://localhost:5181). Add a medicine with the camera, choose a JPG or PNG, or enter the details manually. Use the same browser and URL to reopen saved plans.
 
+The reader is optional. Without it the app still runs — the scan screen offers manual entry and Buddy
+says it can't reach the assistant — but nothing reads a label. **No API key is needed**: local reads
+stay on the machine, and Gemini is only used when you tick the box on the scan screen and put
+`GEMINI_API_KEY=…` in the ignored `lab/.env`.
+
+### The deployed build
+
+[dose on GitHub Pages](https://rohanhariharan.github.io/dose/) is the same app, served statically, so
+it has no reader behind it and says so under Today. If you start `serve.py` on your own machine, that
+page will use it: the bridge allows `https://rohanhariharan.github.io` by default, because a reader on
+the same laptop is still the reader. Add other origins without editing the file:
+
+```bash
+DOSE_ORIGINS=https://example.test ./serve.py
+```
+
 ## Design
 
 A paper surface, a serif for titles, one column and a lot of air. `REVIEW.md` has the numbers
@@ -90,7 +106,7 @@ It has its own README. Kept for the record; not part of this submission.
 
 ## Credits
 
-- **Libre Baskerville** and **Inter**, both SIL Open Font License, bundled in `app/public/fonts`.
+- **Libre Baskerville** and **Inter**, both SIL Open Font License, bundled in `app/src/assets/fonts` so Vite fingerprints them.
 - The dot-matrix renderer is adapted from an earlier desktop project of ours.
 - [Apple Vision](https://developer.apple.com/documentation/vision/recognizing-text-in-images) powers local OCR. [Gemini](https://ai.google.dev/gemini-api/docs) supports the optional cloud read and Buddy.
 - The evaluation sources and coding-tool credits are in the [write-up](REPORT.md).

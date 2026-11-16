@@ -26,6 +26,14 @@ import read as reader  # noqa: E402
 
 HOST, PORT = "127.0.0.1", 8791
 APP_ORIGINS = {f"http://{host}:{port}" for host in ("localhost", HOST) for port in (5181, 4173)}
+# The deployed build is the same app, and a reader running on the same machine
+# is still the reader it should talk to — it just isn't on the dev server's
+# origin. Extra origins can be added without editing this file.
+APP_ORIGINS |= {
+    origin.strip()
+    for origin in os.environ.get("DOSE_ORIGINS", "https://rohanhariharan.github.io").split(",")
+    if origin.strip()
+}
 IMAGE_TYPES = {"data:image/jpeg;base64": ".jpg", "data:image/png;base64": ".png"}
 MAX_IMAGE_BODY = 14 * 1024 * 1024
 FIELDS = (
@@ -64,6 +72,10 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Vary", "Origin")
             self.send_header("Access-Control-Allow-Headers", "content-type")
             self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            # A page on the public web reaching a loopback service is a private
+            # network request; Chrome asks permission first.
+            if self.headers.get("Access-Control-Request-Private-Network"):
+                self.send_header("Access-Control-Allow-Private-Network", "true")
 
     def _allow_app(self):
         origin = self.headers.get("Origin")
