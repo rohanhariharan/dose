@@ -10,7 +10,7 @@ import { clockTime, dayLabel, localDateKey, planFor, type DoseStatus, type Medic
 import { asKind } from "./kinds";
 import { readLabel, type ReadResult } from "./reader";
 import { NamePage, RegimensPage, type Profile } from "./Onboarding";
-import Placeholder from "./Placeholder";
+import { HistoryPage, MedicinesPage, SettingsPage } from "./Records";
 import ScanPage from "./ScanPage";
 import { clearLocal, keys, readDoseLog, readMedicines, readProfile, writeLocal } from "./storage";
 import Welcome from "./Welcome";
@@ -22,20 +22,24 @@ interface Draft {
   strength: string;
   receivedAt: string;
   read: ReadResult | null;
+  scanFailed: boolean;
   schedule: DraftSchedule;
 }
 
-function newDraft(read: ReadResult | null): Draft {
-  const phases = read?.phases?.length
+function newDraft(read: ReadResult | null, scanFailed = false): Draft {
+  const tooManyPhases = (read?.phases?.length ?? 0) > 6;
+  const phases: { perDay?: number | null; days?: number | null; dose?: string | null }[] =
+    tooManyPhases ? [{}] : read?.phases?.length
     ? read.phases
     : [{ perDay: read?.perDay, days: read?.durationDays, dose: read?.dose }];
   return {
     name: read?.name ?? "",
     strength: read?.strength ?? "",
     receivedAt: localDateKey(new Date()),
-    read,
+    read: read && tooManyPhases ? { ...read, needsReview: true } : read,
+    scanFailed,
     schedule: {
-      phases: phases.slice(0, 6).map(({ perDay, days, dose }) => ({
+      phases: phases.map(({ perDay, days, dose }) => ({
         times: Array.from({ length: perDay && perDay >= 1 && perDay <= 4 ? perDay : 0 }, () => ""),
         days: days && days > 0 && days <= 366 ? String(days) : "",
         dose: dose ?? "",
@@ -45,24 +49,6 @@ function newDraft(read: ReadResult | null): Draft {
     },
   };
 }
-
-const PAGES: Record<"medicines" | "history" | "settings", { title: string; lede: string; empty: string }> = {
-  medicines: {
-    title: "Medicines",
-    lede: "What you take, how strong, and when it's due.",
-    empty: "Nothing added yet.",
-  },
-  history: {
-    title: "History",
-    lede: "Every dose taken, skipped or missed, by day.",
-    empty: "No doses recorded yet.",
-  },
-  settings: {
-    title: "Settings",
-    lede: "Your name, reminder times, and what the scanner does with your photos.",
-    empty: "Settings land here.",
-  },
-};
 
 /** Four screens: welcome, name, what you're keeping up with, home.
  *  The first three share the dots; home is the app. */
@@ -79,10 +65,25 @@ export default function App() {
   const [medicines, setMedicines] = useState(readMedicines);
   const [doseLog, setDoseLog] = useState(readDoseLog);
   const [storageNotice, setStorageNotice] = useState("");
+  const [now, setNow] = useState(() => new Date());
 
   const persist = (key: string, value: unknown) => {
-    if (!writeLocal(key, value)) setStorageNotice("Dose couldn’t save to this browser. Changes may be lost on reload.");
+    const saved = writeLocal(key, value);
+    if (!saved) setStorageNotice("Dose couldn’t save to this browser. Changes may be lost on reload.");
+    return saved;
   };
+
+  useEffect(() => {
+    const refresh = () => setNow(new Date());
+    const timer = window.setInterval(refresh, 15_000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, []);
 
   useEffect(() => {
     const sync = (event: StorageEvent) => {
@@ -104,9 +105,9 @@ export default function App() {
   }, []);
 
   // What Buddy is allowed to know: the same plan the card shows, in a line.
-  const buddyContext = medicines
+  const buddyContext = view === "buddy" ? medicines
     .map((m) => {
-      const plan = planFor(m, new Date());
+      const plan = planFor(m, now);
       return [
         `${m.name} ${m.strength}`,
         m.form ?? "",
@@ -116,7 +117,7 @@ export default function App() {
         .filter(Boolean)
         .join(", ");
     })
-    .join("\n");
+    .join("\n") : "";
 
   const addMedicine = () => setScanning(true);
 
@@ -178,20 +179,28 @@ export default function App() {
     go(3);
   };
 
-  if (step === 3 && profile) {
-    const page = PAGES[view as "medicines" | "history" | "settings"];
-    const empty =
-      view === "medicines"
-        ? medicines.length
-          ? medicines.map((m) => `${m.name} ${m.strength}`).join(" · ")
-          : "Nothing added yet."
-        : (page?.empty ?? "");
+  const clearProfile = () => {
+    if (!clearLocal()) {
+      setStorageNotice("Dose couldn’t clear the saved data in this browser.");
+      return;
+    }
+    resetFlow();
+    setStorageNotice("");
+    setProfile(null);
+    setDraftName("");
+    setDraftRegimens([]);
+    setMedicines([]);
+    setDoseLog({});
+    setView("today");
+    go(0, "back");
+  };
 
+  if (step === 3 && profile) {
     // The capture flow takes the whole window: dock and button step aside.
     if (scanning) {
-      const showRead = (read: ReadResult | null) => {
+      const showRead = (read: ReadResult | null, attempted = false) => {
         setScanning(false);
-        setDraft(newDraft(read));
+        setDraft(newDraft(read, attempted && !read?.name));
         setStage("found");
       };
       return (
@@ -200,7 +209,7 @@ export default function App() {
           onManual={() => showRead(null)}
           onCapture={async (dataUrl, allowCloud, signal) => {
             const read = await readLabel(dataUrl, allowCloud, signal);
-            if (!signal.aborted) showRead(read);
+            if (!signal.aborted) showRead(read, true);
           }}
         />
       );
@@ -213,6 +222,7 @@ export default function App() {
           strength={draft.strength}
           kind={draft.read?.form ?? undefined}
           manual={!draft.name}
+          scanFailed={draft.scanFailed}
           onCancel={resetFlow}
           onAgain={() => {
             setStage(null);
@@ -268,31 +278,30 @@ export default function App() {
             onScan={() => setScanning(true)}
           />
         ) : view === "calendar" ? (
-          <Calendar medicines={medicines} log={doseLog} onRecord={recordDose} onAdd={addMedicine} />
+          <Calendar medicines={medicines} log={doseLog} now={now} onRecord={recordDose} onAdd={addMedicine} />
         ) : view === "today" ? (
           <Home
-            key="today"
             profile={profile}
             medicines={medicines}
             log={doseLog}
+            now={now}
             onAdd={addMedicine}
-            onReset={() => {
-              if (!clearLocal()) {
-                setStorageNotice("Dose couldn’t clear the saved data in this browser.");
-                return;
-              }
-              setStorageNotice("");
-              setProfile(null);
-              setDraftName("");
-              setDraftRegimens([]);
-              setMedicines([]);
-              setDoseLog({});
-              setView("today");
-              go(0, "back");
-            }}
+            onRecord={recordDose}
           />
+        ) : view === "medicines" ? (
+          <MedicinesPage medicines={medicines} now={now} onAdd={addMedicine} />
+        ) : view === "history" ? (
+          <HistoryPage medicines={medicines} log={doseLog} now={now} onRecord={recordDose} />
         ) : (
-          <Placeholder key={view} title={page.title} lede={page.lede} empty={empty} />
+          <SettingsPage
+            profile={profile}
+            onSaveName={(name) => {
+              const updated = { ...profile, name };
+              setProfile(updated);
+              return persist(keys.profile, updated);
+            }}
+            onReset={clearProfile}
+          />
         )}
 
         <Dock view={view} onChange={setView} />

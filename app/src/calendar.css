@@ -49,6 +49,12 @@
   gap: 6px;
 }
 
+.calendar-actions .quiet,
+.calendar-dose > .quiet {
+  min-width: 38px;
+  min-height: 40px;
+}
+
 .calendar-button {
   min-width: 40px;
   min-height: 40px;
@@ -139,6 +145,7 @@
 .calendar-on-demand { color: var(--muted); }
 .calendar-medicine span:empty { display: none; }
 .calendar-medicine span, .calendar-on-demand { font-size: 12px; }
+.calendar-medicine .is-due { color: var(--ink); font-weight: 600; }
 
 .calendar-on-demand {
   margin-top: 18px;

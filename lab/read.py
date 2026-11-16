@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-"""Read a label: local first, cloud only when the local read is unsure.
+"""Read a label on this Mac, with an optional cloud fallback.
 
     ./read.py samples/canister.jpg
     ./read.py --json samples/housing.jpg
+    ./read.py --allow-cloud samples/housing.jpg
     ./read.py --force-cloud samples/housing.jpg
 
-Two lanes and one rule. Apple Vision runs on the machine and costs nothing, so
-it goes first. If it comes back without a name, or with a name it does not trust,
-the photograph is escalated to Gemini — which is better on glare, angles and
-handwriting, and which is the only part of this app that sends anything out.
+Apple Vision runs first. If cloud access is enabled and the local read lacks
+directions or a confident name, the photograph is sent to Gemini for another read.
 
 The selected result comes from a single reader so a photo with two packages
 cannot accidentally combine one medicine's name with another's directions.
@@ -28,7 +27,7 @@ import gemini  # noqa: E402
 # Below this, the local name is a guess and the photo is worth sending.
 NAME_TRUST = 0.7
 
-def read(path, force_cloud=False, allow_cloud=True):
+def read(path, force_cloud=False, allow_cloud=False):
     local = extract.parse(extract.ocr(path))
     local_conf = local.get("confidence", {}).get("name", 0)
 
@@ -60,10 +59,12 @@ def main():
     ap.add_argument("--json", action="store_true")
     mode = ap.add_mutually_exclusive_group()
     mode.add_argument("--force-cloud", action="store_true")
-    mode.add_argument("--local-only", action="store_true")
+    mode.add_argument("--allow-cloud", action="store_true", help="send uncertain reads to Gemini")
+    mode.add_argument("--local-only", dest="allow_cloud", action="store_false", help="keep the photo on this Mac (default)")
+    ap.set_defaults(allow_cloud=False)
     args = ap.parse_args()
 
-    result = read(args.image, force_cloud=args.force_cloud, allow_cloud=not args.local_only)
+    result = read(args.image, force_cloud=args.force_cloud, allow_cloud=args.allow_cloud)
 
     if args.json:
         print(json.dumps(result, indent=2, ensure_ascii=False))

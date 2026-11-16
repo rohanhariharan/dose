@@ -1,16 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import DoseList, { type RecordDose } from "./DoseList";
 import {
-  clockTime,
   displayName,
   localDate,
   localDateKey,
   scheduleFor,
   type DoseLog,
-  type DoseStatus,
   type Medicine,
   type ScheduledDose,
 } from "./engine";
-import "./calendar.css";
 
 const monthLabel = new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" });
 const dateLabel = new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric" });
@@ -21,15 +19,16 @@ const weekdays = Array.from({ length: 7 }, (_, day) =>
 export default function Calendar({
   medicines,
   log,
+  now,
   onRecord,
   onAdd,
 }: {
   medicines: Medicine[];
   log: DoseLog;
-  onRecord: (id: string, status: DoseStatus | null) => void;
+  now: Date;
+  onRecord: RecordDose;
   onAdd: () => void;
 }) {
-  const [now, setNow] = useState(() => new Date());
   const [selected, setSelected] = useState(() => localDateKey(new Date()));
   const date = localDate(selected);
   const year = date.getFullYear();
@@ -39,11 +38,6 @@ export default function Calendar({
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const today = localDateKey(now);
   const onDemand = medicines.filter((medicine) => medicine.prn);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 30_000);
-    return () => window.clearInterval(timer);
-  }, []);
 
   const byDay = useMemo(() => {
     const entries = new Map<string, ScheduledDose[]>();
@@ -111,32 +105,7 @@ export default function Calendar({
         <section className="calendar-panel calendar-detail" aria-label="Selected day">
           <h2 aria-live="polite">{dateLabel.format(date)}</h2>
           {shown.length ? (
-            <ul className="calendar-doses">
-              {shown.map(({ id, medicine, dueAt, dose, phase }) => {
-                const entry = log[id];
-                const timing = dueAt > now ? "Upcoming" : selected === today ? "Due" : "Unrecorded";
-                return (
-                  <li className="calendar-dose" key={id}>
-                    <time dateTime={dueAt.toISOString()}>{clockTime(dueAt)}</time>
-                    <div className="calendar-medicine">
-                      <strong>{displayName(medicine.name)} {medicine.strength}</strong>
-                      <span>{[dose, medicine.route, medicine.taper?.length ? `Phase ${phase}` : null].filter(Boolean).join(" · ")}</span>
-                      <span className="calendar-status" aria-live="polite">
-                        {entry ? (entry.status === "taken" ? "Taken" : "Skipped") : timing}
-                      </span>
-                    </div>
-                    {entry ? (
-                      <button className="quiet" type="button" onClick={() => onRecord(id, null)}>Undo</button>
-                    ) : dueAt <= now ? (
-                      <div className="calendar-actions">
-                        <button className="calendar-button" type="button" onClick={() => onRecord(id, "taken")}>Taken</button>
-                        <button className="quiet" type="button" onClick={() => onRecord(id, "skipped")}>Skip</button>
-                      </div>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
+            <DoseList doses={shown} log={log} now={now} onRecord={onRecord} />
           ) : <p className="calendar-empty">No doses scheduled for this day.</p>}
           {medicines.length === 0 ? (
             <button className="primary" type="button" onClick={onAdd}>Add a medicine</button>

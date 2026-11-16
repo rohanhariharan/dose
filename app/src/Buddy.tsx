@@ -1,21 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 
-/** Buddy. A conversation about the medicines on file — not a clinician, and it
- *  says so once, quietly, rather than on every reply.
- *
- *  Replies arrive a piece at a time, and sometimes the reply ends with an
- *  action block: something the app can actually do, offered as a card with two
- *  buttons instead of a sentence asking the person to go and find a setting. */
-
-type Action = { type: string; title: string; body?: string; yes?: string; no?: string };
+type Action = { type: "open" | "rescan"; title: string; body?: string; yes?: string; no?: string };
 type Turn = { role: "user" | "model"; text: string; action?: Action; decided?: "yes" | "no" };
 
 const ENDPOINT = "http://127.0.0.1:8791";
 
 const OPENERS = [
   "When is my next dose?",
-  "What is this medicine for?",
-  "Remind me in the evening",
+  "When does my course end?",
+  "Open my medicines",
 ];
 
 /** The model is told to end with a fenced ```action block; this pulls it out. */
@@ -23,11 +16,19 @@ function splitAction(text: string): { text: string; action?: Action } {
   const match = text.match(/```action\s*\n?([\s\S]*?)```/);
   if (!match) return { text };
   try {
-    const action = JSON.parse(match[1].trim()) as Action;
-    if (!action?.title || !action?.type) return { text };
-    return { text: text.replace(match[0], "").trim(), action };
+    const action = JSON.parse(match[1].trim()) as Partial<Action>;
+    const reply = text.replace(match[0], "").trim();
+    if (!action || (action.type !== "open" && action.type !== "rescan")
+        || typeof action.title !== "string" || !action.title.trim()) return { text: reply };
+    return { text: reply, action: {
+      type: action.type,
+      title: action.title,
+      body: typeof action.body === "string" ? action.body : undefined,
+      yes: typeof action.yes === "string" ? action.yes : undefined,
+      no: typeof action.no === "string" ? action.no : undefined,
+    } };
   } catch {
-    return { text };
+    return { text: text.replace(match[0], "").trim() };
   }
 }
 
@@ -37,7 +38,7 @@ export default function Buddy({
   onScan,
 }: {
   context: string;
-  onOpen: (view: "today" | "medicines") => void;
+  onOpen: (view: "today" | "medicines" | "calendar") => void;
   onScan: () => void;
 }) {
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -46,6 +47,9 @@ export default function Buddy({
   const [offline, setOffline] = useState(false);
   const log = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);
+  const inflight = useRef<AbortController | null>(null);
+
+  useEffect(() => () => inflight.current?.abort(), []);
 
   // The composer grows with what's in it, up to about four lines, then scrolls.
   useEffect(() => {
@@ -63,7 +67,9 @@ export default function Buddy({
 
   const send = async (text: string) => {
     const message = text.trim();
-    if (!message || busy) return;
+    if (!message || inflight.current) return;
+    const request = new AbortController();
+    inflight.current = request;
 
     const history: Turn[] = [...turns, { role: "user", text: message }];
     setTurns([...history, { role: "model", text: "" }]);
@@ -80,12 +86,14 @@ export default function Buddy({
           messages: history.map((t) => ({ role: t.role, text: t.text })),
           context,
         }),
+        signal: request.signal,
       });
-      if (!response.body) throw new Error("no stream");
+      if (!response.ok || !response.body) throw new Error("no stream");
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let completed = false;
 
       for (;;) {
         const { value, done } = await reader.read();
@@ -100,63 +108,49 @@ export default function Buddy({
           if (!line) continue;
           const payload = JSON.parse(line.slice(6)) as { delta?: string; done?: boolean; error?: string };
           if (payload.error) throw new Error(payload.error);
+          if (payload.done) completed = true;
           if (payload.delta) {
             sofar += payload.delta;
+            const visible = sofar.split("```action", 1)[0].trimEnd();
             setTurns((current) => {
-              const next = [...current];
-              const last = next[next.length - 1];
-              if (last?.role === "model") last.text = sofar;
-              return next;
+              const last = current.at(-1);
+              return last?.role === "model"
+                ? [...current.slice(0, -1), { ...last, text: visible }]
+                : current;
             });
           }
         }
       }
+      if (!completed || !sofar.trim()) throw new Error("incomplete stream");
     } catch {
-      setTurns((current) => current.filter((t, i) => !(i === current.length - 1 && t.role === "model" && !t.text)));
-      setOffline(true);
-      setBusy(false);
+      if (!request.signal.aborted) {
+        setTurns(history.slice(0, -1));
+        setDraft(message);
+        setOffline(true);
+      }
       return;
+    } finally {
+      inflight.current = null;
+      if (!request.signal.aborted) setBusy(false);
     }
 
     const { text: said, action } = splitAction(sofar);
     setTurns((current) => {
-      const next = [...current];
-      const last = next[next.length - 1];
-      if (last?.role === "model") {
-        last.text = said || "…";
-        last.action = action;
-      }
-      return next;
+      const last = current.at(-1);
+      return last?.role === "model"
+        ? [...current.slice(0, -1), { ...last, text: said, action }]
+        : current;
     });
-    setBusy(false);
   };
 
-  const decide = async (index: number, yes: boolean, action: Action) => {
+  const decide = (index: number, yes: boolean, action: Action) => {
     setTurns((current) =>
       current.map((turn, i) => (i === index ? { ...turn, decided: yes ? "yes" : "no" } : turn)),
     );
 
     const say = (text: string) => push({ role: "model", text });
 
-    if (!yes) {
-      say("Okay — no reminders. The schedule is still on Today whenever you want it.");
-      return;
-    }
-
-    if (action.type === "notifications") {
-      if (!("Notification" in window)) {
-        say("This window can't show notifications, so I can't set a reminder here.");
-        return;
-      }
-      const permission = await Notification.requestPermission();
-      if (permission === "granted") {
-        new Notification("Reminders are on", { body: "Dose will nudge you when a dose is due." });
-        say("Reminders are on. I'll nudge you when a dose is due.");
-      } else {
-        say("Your browser blocked notifications. You can allow them in site settings, and I'll try again.");
-      }
-      return;
-    }
+    if (!yes) return;
 
     if (action.type === "rescan") {
       onScan();
@@ -165,12 +159,9 @@ export default function Buddy({
     }
 
     if (action.type === "open") {
-      onOpen(action.body === "medicines" ? "medicines" : "today");
+      onOpen(action.body === "medicines" || action.body === "calendar" ? action.body : "today");
       say("Opened it for you.");
-      return;
     }
-
-    say("I can't do that one yet.");
   };
 
   return (
@@ -178,8 +169,8 @@ export default function Buddy({
       <div className="buddy-col">
         <header className="buddy-head">
           <p className="eyebrow">Buddy</p>
-          <h1>Ask about your medicine</h1>
-          <p className="lede left">Not a doctor. For anything urgent, call one.</p>
+          <h1>Ask about your schedule</h1>
+          <p className="lede left">Your message and a summary of your plans are sent to Gemini when you chat.</p>
         </header>
 
         <div className="chat" ref={log}>
@@ -200,7 +191,7 @@ export default function Buddy({
               {turn.action ? (
                 <div className="action">
                   <p className="action-title">{turn.action.title}</p>
-                  {turn.action.body ? <p className="action-body">{turn.action.body}</p> : null}
+                  {turn.action.type === "rescan" && turn.action.body ? <p className="action-body">{turn.action.body}</p> : null}
                   {turn.decided ? (
                     <p className="action-done">{turn.decided === "yes" ? "Done." : "Dismissed."}</p>
                   ) : (
@@ -208,14 +199,14 @@ export default function Buddy({
                       <button
                         className="action-yes"
                         type="button"
-                        onClick={() => void decide(index, true, turn.action!)}
+                        onClick={() => decide(index, true, turn.action!)}
                       >
                         {turn.action.yes ?? "Yes"}
                       </button>
                       <button
                         className="action-no"
                         type="button"
-                        onClick={() => void decide(index, false, turn.action!)}
+                        onClick={() => decide(index, false, turn.action!)}
                       >
                         {turn.action.no ?? "No"}
                       </button>
@@ -232,7 +223,7 @@ export default function Buddy({
 
           {offline ? (
             <p className="msg system">
-              Buddy can’t reach the assistant. Start it with <code>lab/serve.py</code> and try again.
+              Buddy is unavailable. Start <code>lab/serve.py</code> with a Gemini API key, then try again.
             </p>
           ) : null}
         </div>

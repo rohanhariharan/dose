@@ -25,15 +25,17 @@ seconds of patience.
 
 | Feature | State |
 |---|---|
-| Onboarding and Today | Saves the user's name, regimen preferences, and course cards |
+| Onboarding and Today | Saves the user's name and regimen preferences. Today shows due and upcoming doses and lets the user record taken or skipped doses |
 | Label scan | Reads a camera capture or a JPG/PNG using the local reader. Manual entry is available |
 | Schedule review | Shows the OCR directions and any recognized dose, route, frequency, and duration. The user chooses the clock times |
 | Prescription calendar | Shows the day's schedule, supports multiple course phases, and saves taken/skipped records |
 | As-needed medicines | Listed separately with no scheduled doses |
-| Buddy | Streams replies about the medicines on file when configured with Gemini |
+| Medicines and History | Shows schedules, taper phases, label text, and dose records |
+| Settings | Change the profile name, review data use, or clear saved data |
+| Buddy | Answers schedule questions and opens app screens when configured with Gemini |
 | Background reminders and desktop packaging | Planned |
 
-The profile, plans, and dose records are stored in `localStorage` for this browser and origin. **Start over** on Today clears all three.
+The profile, plans, and dose records are stored in `localStorage` for this browser and origin. Open **Settings → Start over** to clear all three.
 
 ## Run it
 
@@ -78,7 +80,7 @@ Reproduce the local evaluation from the saved OCR snapshots at the repo root.
 python3 lab/benchmark.py
 ```
 
-On eight public test images and crops, the local reader matched all five annotated fields in **3/8** cases. The plain regex baseline scored **5/8**. See the [report](REPORT.md) for field-level results and failures.
+In the [original pilot](REPORT.md), the local reader matched all five annotated fields in **3/8** public examples. The plain regex baseline scored **5/8**. The demo and report describe the [pilot build](https://github.com/rohanhariharan/dose/tree/5196b49). After the reader fixes, it matched **4/8** on the same examples used for regression checks, with 10 missed fields and zero false alarms.
 
 ## Also in this repo
 

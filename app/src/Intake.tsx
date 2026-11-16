@@ -32,6 +32,7 @@ export function FoundPage({
   strength,
   kind,
   manual: startManual = false,
+  scanFailed = false,
   onYes,
   onAgain,
   onCancel,
@@ -40,6 +41,7 @@ export function FoundPage({
   strength: string;
   kind?: string;
   manual?: boolean;
+  scanFailed?: boolean;
   onYes: (name: string, strength: string) => void;
   onAgain: () => void;
   onCancel: () => void;
@@ -58,7 +60,9 @@ export function FoundPage({
       {manual ? (
         <>
           <h1>Enter it yourself</h1>
-          <p className="lede">The name and the strength, as they appear on the box.</p>
+          <p className="lede">{scanFailed
+            ? "Dose couldn’t read a medicine name. Check the label or try a clearer photo."
+            : "The name and strength, as they appear on the box."}</p>
           <form
             className="form"
             onSubmit={(e) => {
@@ -92,6 +96,11 @@ export function FoundPage({
               Use these
             </button>
           </form>
+          {scanFailed ? (
+            <div className="page-actions">
+              <button className="quiet" type="button" onClick={onAgain}>Try another photo</button>
+            </div>
+          ) : null}
         </>
       ) : (
         <>

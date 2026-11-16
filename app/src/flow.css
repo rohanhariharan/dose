@@ -136,8 +136,9 @@
 .home {
   min-height: 100%;
   display: grid;
-  place-items: center;
+  place-items: start center;
   padding: 56px 24px 148px;
+  overflow-x: clip;
 }
 
 .home-col {
@@ -159,20 +160,12 @@
   margin: 10px 0 10px;
   font-family: var(--font-accent);
   font-weight: 400;
-  font-size: 42px;
+  font-size: clamp(30px, 6vw, 42px);
   line-height: 1.04;
   letter-spacing: -0.03em;
 }
 
-.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -10px; }
-.tag {
-  padding: 5px 11px;
-  border: 1px solid var(--hair);
-  border-radius: 999px;
-  background: var(--bg-2);
-  color: var(--muted);
-  font-size: 12px;
-}
+.home-head .eyebrow { color: var(--muted); }
 
 .empty {
   display: grid;
@@ -193,13 +186,79 @@
 .empty .primary { width: auto; padding: 0 22px; }
 
 .home-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--faint);
+  color: var(--muted);
   font-size: 11px;
 }
 
+.today-doses h2 {
+  margin: 0;
+  font-family: var(--font-accent);
+  font-size: 21px;
+  font-weight: 400;
+}
+
+.today-doses-head,
+.today-tally {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.today-tally {
+  justify-content: flex-start;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.today-tally strong { color: var(--ink); }
+
+.as-needed-item { padding-block: 10px; font-size: 14px; }
+.as-needed-item + .as-needed-item { border-top: 1px solid var(--hair); }
+.as-needed-item p,
+.medicine-label p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.record-muted { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
+.today-doses > .record-muted { margin: 10px 0; }
+
+.medicine-phases {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.medicine-phases li {
+  display: grid;
+  grid-template-columns: minmax(70px, max-content) minmax(0, 1fr);
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hair);
+  font-size: 13px;
+}
+
+.medicine-phases span { color: var(--muted); }
+.medicine-label { font-size: 13px; }
+.medicine-label summary { cursor: pointer; }
+.settings-form { margin-top: 14px; }
+.settings-form .primary { justify-self: start; width: auto; padding-inline: 16px; }
+.reset-confirm p { margin: 14px 0; font-size: 14px; }
+
+@media (max-width: 420px) {
+  .home { padding: 36px 16px 148px; }
+  .medicine-dates { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 /* ------------------------------------------------------------------ scan --- */
 
@@ -378,8 +437,7 @@
   .page-body,
   .home-col,
   .dock,
-  .fab,
-  .ph-col {
+  .fab {
     animation: none;
   }
   .dots i { transition: none; }
@@ -490,41 +548,6 @@
   font-size: 13px;
 }
 
-/* ----------------------------------------------------------- placeholder --- */
-
-.placeholder {
-  min-height: 100%;
-  display: grid;
-  place-items: center;
-  padding: 56px 24px 148px;
-}
-
-.ph-col {
-  width: min(560px, 100%);
-  display: grid;
-  gap: 10px;
-  animation: page-in-fwd 0.34s cubic-bezier(0.32, 0.72, 0.28, 1) both;
-}
-
-.ph-col h1 {
-  margin: 0;
-  font-family: var(--font-accent);
-  font-weight: 400;
-  font-size: 42px;
-  line-height: 1.04;
-  letter-spacing: -0.03em;
-}
-
-.ph-box {
-  margin-top: 18px;
-  padding: 26px;
-  border: 1px dashed var(--hair-2);
-  border-radius: 20px;
-  color: var(--faint);
-  font-size: 13px;
-  text-align: center;
-}
-
 /* -------------------------------------------------------------- intake --- */
 
 .sheet-top {
@@ -551,6 +574,8 @@
   line-height: 1.55;
   white-space: pre-line;
   overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .intake-note { margin: 0; }
@@ -670,7 +695,7 @@
   background: var(--bg-2);
   text-align: left;
 }
-.plan-head { display: grid; gap: 13px; }
+.plan-head { display: grid; gap: 5px; }
 .plan-head h2 {
   margin: 0;
   font-family: var(--font-accent);
@@ -687,7 +712,7 @@
 }
 .plan-kv div { display: grid; gap: 4px; }
 .plan-kv dt {
-  color: var(--faint);
+  color: var(--muted);
   font-size: 10.5px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -697,8 +722,6 @@
   font-size: 14px;
   color: var(--ink);
 }
-.plan-kv .then { display: block; color: var(--muted); font-size: 11.5px; margin-top: 2px; }
-
 .plans { display: grid; gap: 12px; }
 
 .scan-shot {
@@ -729,26 +752,3 @@
 .scan-cta:hover { filter: brightness(0.96); }
 .scan-manual { color: rgba(255, 255, 255, 0.7); }
 .scan-manual:hover { color: #fff; }
-
-
-
-.plan-progress { display: grid; gap: 7px; }
-.plan-progress .bar {
-  height: 6px;
-  border-radius: 999px;
-  background: var(--hair);
-  overflow: hidden;
-}
-.plan-progress .bar > i {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--ink);
-  transition: width 0.35s cubic-bezier(0.32, 0.72, 0.28, 1);
-}
-.plan-meta {
-  display: flex;
-  justify-content: space-between;
-  color: var(--muted);
-  font-size: 11.5px;
-}
