@@ -2,7 +2,8 @@
 
 A local-first app for one person's ongoing treatment. Scan the label, confirm the directions, and see what's due on the calendar.
 
-Built for the **AI + Health** track of the Veritas AI International High School Hackathon 2026.
+Built for the **AI + Health** track of the Veritas AI International High School Hackathon 2026 by
+Rohan Hariharan and Arnav Agrawal, Northview High School.
 
 > This project is a prototype and is not medical advice.
 

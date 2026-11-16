@@ -1,4 +1,4 @@
-/* Dose — the design tokens. See REVIEW.md §6. */
+/* Dose — the design tokens. See REVIEW.md §6.
    Paper is the default: this app is used at 7am, not at a desk. */
 
 @font-face {
@@ -6,21 +6,21 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("/fonts/libre-baskerville-400.woff2") format("woff2");
+  src: url("./assets/fonts/libre-baskerville-400.woff2") format("woff2");
 }
 @font-face {
   font-family: "Libre Baskerville";
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url("/fonts/libre-baskerville-400-italic.woff2") format("woff2");
+  src: url("./assets/fonts/libre-baskerville-400-italic.woff2") format("woff2");
 }
 @font-face {
   font-family: "Inter";
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;
-  src: url("/fonts/inter-variable.woff2") format("woff2");
+  src: url("./assets/fonts/inter-variable.woff2") format("woff2");
 }
 
 :root {

@@ -2,6 +2,8 @@
 
 **AI + Health · Veritas AI International High School Hackathon 2026**
 
+**Team:** Rohan Hariharan and Arnav Agrawal, Northview High School
+
 > This project is a prototype and is not medical advice.
 
 ## The problem
