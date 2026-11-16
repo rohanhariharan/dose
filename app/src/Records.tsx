@@ -1,6 +1,7 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import DoseList, { type RecordDose } from "./DoseList";
 import { clockTime, dayLabel, displayName, localDate, localDateKey, planFor, scheduleFor, type DoseLog, type Medicine, type ScheduledDose } from "./engine";
+import { AGE_BANDS, HABITS, type AboutYou } from "./context";
 import { readDoseLog, readMedicines, readProfile } from "./storage";
 import { kindLabel } from "./kinds";
 import type { Profile } from "./Onboarding";
@@ -122,16 +123,32 @@ export function HistoryPage({
 }
 
 export function SettingsPage({
-  profile, onSaveName, onReset,
+  profile, about, onSaveName, onSaveAbout, onReset,
 }: {
   profile: Profile;
+  about: AboutYou;
   onSaveName: (name: string) => boolean;
+  onSaveAbout: (about: AboutYou) => boolean;
   onReset: () => void;
 }) {
   const [name, setName] = useState(profile.name);
   const [saved, setSaved] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [savedAbout, setSavedAbout] = useState(false);
+  // Local draft: two chips clicked in the same tick would otherwise both spread
+  // the same stale object and one would vanish.
+  const [draftAbout, setDraftAbout] = useState<AboutYou>(about);
+  // A ref as well as state, because a chip clicked twice inside one tick would
+  // otherwise read the same stale object both times.
+  const latestAbout = useRef<AboutYou>(about);
+
+  const changeAbout = (next: AboutYou) => {
+    latestAbout.current = next;
+    setDraftAbout(next);
+    setSavedAbout(onSaveAbout(next));
+    window.setTimeout(() => setSavedAbout(false), 2000);
+  };
   const [theme, setTheme] = useState<"paper" | "night">(() =>
     document.documentElement.dataset.theme === "night" ? "night" : "paper",
   );
@@ -212,6 +229,65 @@ export function SettingsPage({
       </section>
 
       <section className="calendar-panel today-doses">
+        <h2>About you</h2>
+        <p className="record-muted">
+          Optional, and deliberately vague — no condition, no birthday, nothing that identifies you.
+          It only helps Buddy answer in terms of your actual week.
+        </p>
+
+        <span className="label">Age band</span>
+        <div className="seg" role="group" aria-label="Age band">
+          {AGE_BANDS.map((band) => (
+            <button
+              key={band}
+              type="button"
+              className={`seg-item ${latestAbout.current.ageBand === band ? "on" : ""}`}
+              aria-pressed={latestAbout.current.ageBand === band}
+              onClick={() => changeAbout({ ...latestAbout.current, ageBand: latestAbout.current.ageBand === band ? "" : band })}
+            >
+              {band}
+            </button>
+          ))}
+        </div>
+
+        <span className="label">What your week looks like</span>
+        <div className="chips">
+          {HABITS.map((habit) => {
+            const on = latestAbout.current.chips.includes(habit);
+            return (
+              <button
+                key={habit}
+                type="button"
+                className={`chip ${on ? "on" : ""}`}
+                aria-pressed={on}
+                onClick={() =>
+                  changeAbout({
+                    ...latestAbout.current,
+                    chips: on
+                      ? latestAbout.current.chips.filter((c) => c !== habit)
+                      : [...latestAbout.current.chips, habit],
+                  })
+                }
+              >
+                {habit}
+              </button>
+            );
+          })}
+        </div>
+
+        <label className="label" htmlFor="about-note">Anything else (optional)</label>
+        <input
+          id="about-note"
+          className="input"
+          value={latestAbout.current.note}
+          maxLength={120}
+          placeholder="e.g. I work nights, so mornings are hard"
+          onChange={(event) => changeAbout({ ...latestAbout.current, note: event.target.value })}
+        />
+        {savedAbout ? <p className="intake-note" role="status">Saved.</p> : null}
+      </section>
+
+      <section className="calendar-panel today-doses">
         <h2>Appearance</h2>
         <p className="record-muted">Paper for daylight, night for a dark kitchen.</p>
         <div className="seg" role="group" aria-label="Theme">
@@ -249,7 +325,7 @@ export function SettingsPage({
       <section className="calendar-panel today-doses">
         <h2>Data and privacy</h2>
         <p className="record-muted">Your profile, prescriptions, and dose history are saved in this browser.</p>
-        <p className="record-muted">Label scans run on this Mac by default. The scan screen lets you choose whether an uncertain read can send the photo to Gemini. Buddy sends your message and a summary of your plans to Gemini when you chat.</p>
+        <p className="record-muted">Label scans run on this Mac by default. The scan screen lets you choose whether an uncertain read can send the photo to Gemini. Buddy sends your message, a summary of your plans, and anything you fill in under About you to Gemini when you chat.</p>
         {confirmReset ? (
           <div className="reset-confirm">
             <p id="reset-message">Clear your profile, prescriptions, and dose history from this browser?</p>

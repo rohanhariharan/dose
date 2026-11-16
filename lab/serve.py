@@ -99,6 +99,9 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allow_app():
             return
         route = self.path.split("?")[0]
+        if route == "/summary/stream":
+            self.handle_summary_stream()
+            return
         if route == "/chat/stream":
             self.handle_chat_stream()
             return
@@ -143,6 +146,48 @@ class Handler(BaseHTTPRequestHandler):
                 pass
 
         self._send(200, {key: result.get(key) for key in FIELDS})
+
+    def handle_summary_stream(self):
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            body = json.loads(self.rfile.read(length))
+            facts = (body.get("context") or "").strip()
+            if not facts:
+                raise ValueError("no facts")
+        except Exception as error:  # noqa: BLE001
+            self._send(400, {"error": f"bad request: {error}"})
+            return
+
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Transfer-Encoding", "chunked")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+
+        def event(payload):
+            return f"data: {json.dumps(payload)}\n\n".encode()
+
+        try:
+            stream = gemini.chat_stream(
+                [{"role": "user", "text": "Summarise today."}],
+                facts,
+                system=gemini.SUMMARY,
+            )
+            for delta in stream:
+                self._chunk(event({"delta": delta}))
+            self._chunk(event({"done": True}))
+        except Exception as error:  # noqa: BLE001
+            try:
+                self._chunk(event({"error": str(error)}))
+            except OSError:
+                pass
+        finally:
+            try:
+                self.wfile.write(b"0\r\n\r\n")
+                self.wfile.flush()
+            except OSError:
+                pass
 
     def handle_chat_stream(self):
         try:

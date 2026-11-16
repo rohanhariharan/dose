@@ -42,10 +42,10 @@ answers "what is due today" without a menu in the way.
 | **Review** | the label text verbatim, then name, strength, kind, route, dose, frequency, duration and any taper phases — every field editable |
 | **Schedule** | clock times per phase; a taper is a list of phases, each with its own days, dose and times |
 | **Calendar** | the month, with the day's doses broken out; taken and skipped are recorded per dose |
-| **Today** | what is due now, what the week left unrecorded, and which courses run out this week |
+| **Today** | a streamed two-line summary of the day, what is due now, what the week left unrecorded, and which courses run out this week |
 | **Medicines / History** | what is on file, and what actually happened |
 | **Buddy** | chat grounded in the medicines on file; streams, and can offer an action card |
-| **Settings** | name, a plain statement of what is stored and what is sent, and a full reset |
+| **Settings** | name, optional non-identifying context for Buddy, paper or night, copy today's schedule, export everything, a plain statement of what is sent, and a full reset |
 
 As-needed medicines are listed and tracked without calendar events. A read that the parser is unsure
 about is marked for review rather than saved quietly.

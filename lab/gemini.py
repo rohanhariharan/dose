@@ -207,9 +207,18 @@ def chat(messages, context=""):
         raise RuntimeError("gemini returned no text") from None
 
 
-def chat_stream(messages, context=""):
+SUMMARY = """You are writing the two-line summary at the top of a medicine app's Today screen.
+
+Write for the person themselves, in second person, plainly. At most two short sentences, under 220
+characters in total. Cover only what is in the facts you are given: what is due today, anything from
+the past week left unrecorded, and anything running out within a week. If there is nothing to report,
+say the day is clear. No advice, no diagnosis, no reassurance, no exclamation marks, no emoji, and
+never mention that you are a model."""
+
+
+def chat_stream(messages, context="", system=None):
     """The same reply, a piece at a time, so the app can show it as it arrives."""
-    system = SYSTEM
+    system = system or SYSTEM
     if context:
         system += "\n\nWhat they have on file right now (use it if it helps, do not recite it):\n" + context
 

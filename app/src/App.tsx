@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Buddy from "./Buddy";
+import { aboutLine, readAbout, writeAbout, type AboutYou } from "./context";
 import Calendar from "./Calendar";
 import Dock, { type View } from "./Dock";
 import Dots from "./Dots";
@@ -63,6 +64,7 @@ export default function App() {
   const [stage, setStage] = useState<Stage>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [medicines, setMedicines] = useState(readMedicines);
+  const [about, setAbout] = useState<AboutYou>(() => readAbout());
   const [doseLog, setDoseLog] = useState(readDoseLog);
   const [storageNotice, setStorageNotice] = useState("");
   const [now, setNow] = useState(() => new Date());
@@ -125,6 +127,11 @@ export default function App() {
         .join(", ");
     })
     .join("\n") : "";
+
+  // What the person volunteered, if anything. Deliberately separate from the
+  // plan: the medicines are facts, this is how their week works.
+  const buddyAbout = aboutLine(about);
+  const buddyBrief = buddyAbout ? `${buddyContext}\n${buddyAbout}`.trim() : buddyContext;
 
   const addMedicine = () => setScanning(true);
 
@@ -280,7 +287,7 @@ export default function App() {
         {view === "buddy" ? (
           <Buddy
             key="buddy"
-            context={buddyContext}
+            context={buddyBrief}
             onOpen={(next) => setView(next)}
             onScan={() => setScanning(true)}
           />
@@ -303,6 +310,11 @@ export default function App() {
         ) : (
           <SettingsPage
             profile={profile}
+            about={about}
+            onSaveAbout={(next) => {
+              setAbout(next);
+              return writeAbout(next);
+            }}
             onSaveName={(name) => {
               const updated = { ...profile, name };
               setProfile(updated);

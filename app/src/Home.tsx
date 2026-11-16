@@ -1,3 +1,4 @@
+import DailySummary from "./DailySummary";
 import DoseList, { type RecordDose } from "./DoseList";
 import {
   dayLabel,
@@ -56,6 +57,26 @@ export default function Home({
     .map((medicine) => ({ medicine, plan: planFor(medicine, now) }))
     .filter(({ plan }) => plan.remaining > 0 && plan.daysLeft <= 7)
     .sort((a, b) => a.plan.daysLeft - b.plan.daysLeft);
+  // The facts the summary is allowed to see. Nothing identifying, nothing that
+  // is not already on this screen.
+  const facts = [
+    `${doses.length} dose${doses.length === 1 ? "" : "s"} scheduled today, ${due} still due, ${taken} taken.`,
+    missed.length
+      ? `${missed.length} unrecorded in the past week, earliest ${dayLabel(missed[0].dueAt)}.`
+      : "Nothing unrecorded in the past week.",
+    runningOut.length
+      ? runningOut
+          .map(
+            ({ medicine, plan }) =>
+              `${displayName(medicine.name)} ends ${dayLabel(plan.end)} with ${plan.remaining} doses left.`,
+          )
+          .join(" ")
+      : "",
+    asNeeded.length ? `${asNeeded.length} as-needed medicine${asNeeded.length === 1 ? "" : "s"} on file.` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   const date = now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
   const name = profile.name.trim();
   const display = name ? name[0].toUpperCase() + name.slice(1) : "";
@@ -75,6 +96,8 @@ export default function Home({
           </section>
         ) : (
           <>
+            <DailySummary facts={facts} />
+
             <section className="calendar-panel today-doses" aria-labelledby="today-doses">
               <header className="today-doses-head">
                 <h2 id="today-doses">Today’s doses</h2>
