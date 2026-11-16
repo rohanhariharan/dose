@@ -106,7 +106,9 @@ It has its own README. Kept for the record; not part of this submission.
 
 ## Credits
 
-- **Libre Baskerville** and **Inter**, both SIL Open Font License, bundled in `app/src/assets/fonts` so Vite fingerprints them.
+Every dataset, model, library, asset and AI tool, with links: **[CREDITS.md](CREDITS.md)**.
+
+- **Libre Baskerville** and **Inter**, both SIL Open Font License, bundled in `app/src/assets/fonts` so Vite fingerprints them (license texts sit beside the fonts).
 - The dot-matrix renderer is adapted from an earlier desktop project of ours.
 - [Apple Vision](https://developer.apple.com/documentation/vision/recognizing-text-in-images) powers local OCR. [Gemini](https://ai.google.dev/gemini-api/docs) supports the optional cloud read and Buddy.
-- The evaluation sources and coding-tool credits are in the [write-up](REPORT.md).
+- The evaluation sources are in the [write-up](REPORT.md); the full attribution list is in [CREDITS.md](CREDITS.md).
