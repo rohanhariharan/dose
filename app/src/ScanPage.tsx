@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ReadingBeam } from "./PixelBits";
 
 /** The capture screen. A live viewfinder, a box the size of a prescription
  *  bottle, and one shutter.

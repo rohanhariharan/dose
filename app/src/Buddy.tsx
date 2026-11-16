@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ThinkingBlip } from "./PixelBits";
 
 type Action = { type: "open" | "rescan"; title: string; body?: string; yes?: string; no?: string };
 type Turn = { role: "user" | "model"; text: string; action?: Action; decided?: "yes" | "no" };
@@ -218,7 +219,10 @@ export default function Buddy({
           ))}
 
           {busy && turns[turns.length - 1]?.text === "" ? (
-            <p className="msg them thinking">Thinking…</p>
+            <p className="msg them thinking">
+              <ThinkingBlip />
+              <span>Thinking</span>
+            </p>
           ) : null}
 
           {offline ? (

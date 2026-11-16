@@ -109,6 +109,9 @@ claim to be.
   `object-fit: cover` transform first, so the reader sees exactly what the person framed.
 - The dock is one floating pill with six places, and the add button sits clear of it — one control
   layer, two jobs.
+- Three small dot-matrix motifs mark the moments someone is waiting: an empty shelf on the first
+  Today, a beam while a label is being read, three cells while Buddy composes. They are the same
+  grid and the same three colours as the welcome scene, and they are the only animation on screen.
 
 ## 7. Where it's weak
 

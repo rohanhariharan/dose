@@ -25,7 +25,7 @@ seconds of patience.
 
 | Feature | State |
 |---|---|
-| Onboarding and Today | Saves the user's name and regimen preferences. Today opens with a short written summary of the day (streamed, on request), shows due and upcoming doses, lets the user record taken or skipped doses, flags anything the past week left unrecorded, and warns when a course runs out within seven days |
+| Onboarding and Today | Saves the user's name and regimen preferences. Today opens with a short written summary of the day (streamed once per session, then cached), shows due and upcoming doses, lets the user record taken or skipped doses, flags anything the past week left unrecorded, and warns when a course runs out within seven days |
 | Label scan | Reads a camera capture or a JPG/PNG using the local reader. Manual entry is available |
 | Schedule review | Shows the OCR directions and any recognized dose, route, frequency, and duration. The user chooses the clock times |
 | Prescription calendar | Shows the day's schedule, supports multiple course phases, and saves taken/skipped records |

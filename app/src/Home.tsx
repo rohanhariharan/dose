@@ -1,4 +1,5 @@
 import DailySummary from "./DailySummary";
+import { EmptyShelf } from "./PixelBits";
 import DoseList, { type RecordDose } from "./DoseList";
 import {
   dayLabel,
@@ -91,6 +92,7 @@ export default function Home({
 
         {medicines.length === 0 ? (
           <section className="empty">
+            <EmptyShelf />
             <p>Scan a label or enter a prescription to see what’s due here.</p>
             <button className="primary" type="button" onClick={onAdd}>Add a medicine</button>
           </section>

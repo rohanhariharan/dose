@@ -174,3 +174,24 @@
   line-height: 1.6;
   color: var(--ink);
 }
+
+/* The three pixel motifs. Present, but never competing with the type. */
+.pixel-empty {
+  display: block;
+  margin: 0 auto 18px;
+  image-rendering: pixelated;
+  opacity: 0.9;
+}
+.pixel-beam {
+  display: block;
+  margin: 0 auto 12px;
+  image-rendering: pixelated;
+  opacity: 0.85;
+}
+.pixel-blip {
+  display: inline-block;
+  vertical-align: -1px;
+  margin-right: 7px;
+  image-rendering: pixelated;
+}
+.msg.thinking { display: flex; align-items: center; }
